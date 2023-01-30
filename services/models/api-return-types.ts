@@ -1,3 +1,5 @@
+import { DateTime } from "luxon";
+
 export interface ApiResultCode {
   result: number;
   error?: string;
@@ -44,4 +46,17 @@ export interface PCloudFile extends PCloudCommonMetadata {
   category: number;
   fileid: number;
   size: number;
+}
+
+export class UserInfo {
+  constructor(
+    public email: string,
+    public emailverified: boolean,
+    public registered: DateTime,
+    public premium: boolean,
+    public premiumexpires: DateTime,
+    public quota: number,
+    public usedquota: number,
+    public language: string
+  ) {}
 }

@@ -47,6 +47,5 @@ function toggleTheme() {
 
 onMounted(() => {
   AuthService.checkLocalStorage();
-  // console.log(import.meta.env.VITE_CLIENT_ID);
 });
 </script>

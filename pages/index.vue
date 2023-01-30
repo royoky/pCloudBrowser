@@ -51,21 +51,6 @@ const params = {
 };
 
 async function fetchExample() {
-  /* api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
-  api.defaults.headers["Access-Control-Allow-Methods"] =
-    "GET,PUT,POST,DELETE,PATCH,OPTIONS";
-  api.defaults.headers["Access-Control-Allow-Headers"] =
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"; */
-
-  /* api.defaults.headers["Access-Control-Allow-Origin"] = "*";
-  api.defaults.headers["Access-Control-Allow-Headers"] =
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization";
-  api.defaults.headers["Access-Control-Allow-Methods"] =
-    "GET, POST, PUT, DELETE, OPTIONS";
-  api.defaults.headers["Access-Control-Allow-Credentials"] = "true"; */
-
-  // const { data } = await api.get("/listfolder", { params });
-
   const { data } = await useFetch<any, Error, string, any>(
     `https://${authStore.baseUrl}/listfolder`,
     {
@@ -73,30 +58,27 @@ async function fetchExample() {
     }
   );
 
-  folders.value = data.value.metadata.contents.filter(
+  folders.value = data.value.metadata?.contents?.filter(
     (elt: PCloudFile | PCloudFolder) => elt.isfolder
   );
-  files.value = data.value.metadata.contents.filter(
+  files.value = data.value.metadata?.contents?.filter(
     (elt: PCloudFile | PCloudFolder) => !elt.isfolder
   );
 }
 
 async function logout() {
   const { data } = await useFetch("https://eapi.pcloud.com/logout", {
-    params,
+    params: { logout: true, access_token: authStore.token },
   });
 
-  if ((data as any).result === 0 && (data as any).auth_deleted) {
-    authStore.$reset();
+  if ((data as any).result === 0) {
+    authStore.$patch({
+      baseUrl: "",
+      token: "",
+      userId: null,
+    });
   }
 }
-
-onMounted(() => {
-  if (authStore.token) {
-    useLocalStorage("token", authStore.token);
-    useLocalStorage("baseUrl", authStore.baseUrl);
-  }
-});
 </script>
 
 <style lang="scss">

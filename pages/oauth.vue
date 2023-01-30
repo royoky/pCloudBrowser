@@ -5,40 +5,40 @@
 <script setup lang="ts">
 import AuthService from "~~/services/auth.service";
 import { useAuth } from "~~/store/auth";
+import { OAuthToken } from "../services/models/api-return-types";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuth();
-const { code, state, locationid, hostname } = route.query as any;
+const { code, state, locationid, hostname }: Record<string, any> = route.query;
 
 const displayedText = ref<string>("Logging to pCloud ...");
 
 authStore.$subscribe((mutation, state) => {
-  console.log("sub sub");
   if (state.token) {
-    console.log("got Token", authStore.token);
     displayedText.value = "Successfully Logged in !";
-    setTimeout(() => {
-      router.push("/");
-    }, 1000);
+    localStorage.setItem("token", authStore.token);
+    localStorage.setItem("baseUrl", authStore.baseUrl);
+    router.push("/");
   }
 });
-
-authStore.baseUrl = hostname;
 
 onMounted(async () => {
   try {
     const oAuthData = await AuthService.getTokenFromCode(code, hostname);
-    authStore.token = oAuthData.access_token;
-    authStore.userId = oAuthData.userid;
+
+    if (oAuthData?.access_token) {
+      authStore.$patch({
+        baseUrl: hostname,
+        token: oAuthData.access_token,
+        userId: oAuthData.userid,
+        locationId: oAuthData.locationid,
+      });
+    } else {
+      throw new Error("cannot get token :: " + oAuthData.result);
+    }
   } catch (err) {
     console.error(err);
-  }
-});
-
-onBeforeUnmount(() => {
-  if (authStore.token) {
-    useLocalStorage("token", authStore.token);
   }
 });
 </script>
