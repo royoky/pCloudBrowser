@@ -3,9 +3,9 @@
 </template>
 
 <script setup lang="ts">
+import { OAuthToken } from "~/services/models/api-return-types";
 import AuthService from "~~/services/auth.service";
 import { useAuth } from "~~/store/auth";
-import { OAuthToken } from "../services/models/api-return-types";
 
 const route = useRoute();
 const router = useRouter();
@@ -25,8 +25,10 @@ authStore.$subscribe((mutation, state) => {
 
 onMounted(async () => {
   try {
-    const oAuthData = await AuthService.getTokenFromCode(code, hostname);
-
+    const oAuthData: OAuthToken = await AuthService.getTokenFromCode(
+      code,
+      hostname
+    );
     if (oAuthData?.access_token) {
       authStore.$patch({
         baseUrl: hostname,

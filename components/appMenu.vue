@@ -1,11 +1,18 @@
 <template>
-  <v-navigation-drawer expand-on-hover rail>
+  <v-navigation-drawer
+    v-if="authStore.isAuthenticated"
+    rail
+    permanent
+    expand-on-hover
+  >
     <v-list>
-      <v-list-item
-        prepend-avatar="https://randomuser.me/api/portraits/women/85.jpg"
-        title="Sandra Adams"
-        subtitle="sandra_a88@gmailcom"
-      ></v-list-item>
+      <v-list-item :title="email" :subtitle="quota">
+        <template v-slot:prepend>
+          <v-avatar color="red">
+            <span>{{ email?.[0]?.toUpperCase() ?? "?" }}</span>
+          </v-avatar>
+        </template>
+      </v-list-item>
     </v-list>
 
     <v-divider></v-divider>
@@ -31,4 +38,30 @@
   </v-navigation-drawer>
 </template>
 
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import prettyBytes from "pretty-bytes";
+import GeneralService from "~~/services/general.service";
+import { UserInfo } from "~~/services/models/api-return-types";
+import { useAuth } from "~~/store/auth";
+
+const authStore = useAuth();
+const userInfo = ref<UserInfo>();
+
+const email = computed(() => userInfo.value?.email ?? "");
+const quota = computed((): string => {
+  if (userInfo.value) {
+    return `${prettyBytes(userInfo.value.usedquota)} out of ${prettyBytes(
+      userInfo.value.quota
+    )} used`;
+  }
+  return "";
+});
+
+watchEffect(async () => {
+  if (authStore.isAuthenticated) {
+    userInfo.value = await GeneralService.getUserInfo();
+  } else {
+    userInfo.value = undefined;
+  }
+});
+</script>

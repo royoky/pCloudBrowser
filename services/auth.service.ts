@@ -41,10 +41,9 @@ export default class AuthService {
   }
 
   static async getMe(): Promise<UserInfo> {
-    const { data: userDto } = await useFetch<any, Error, string, any>(
-      `https://${useAuth().baseUrl}/userinfo`,
-      { params: { access_token: useAuth().token } }
-    );
+    const userDto = await $fetch(`https://${useAuth().baseUrl}/userinfo`, {
+      params: { access_token: useAuth().token },
+    });
     const user = plainToInstance(UserInfo, userDto);
     return user;
   }
@@ -60,7 +59,7 @@ export default class AuthService {
 
   static async logout(): Promise<boolean> {
     try {
-      await useFetch(`https://${useAuth().baseUrl}/logout`);
+      await $fetch(`https://${useAuth().baseUrl}/logout`);
     } catch (e) {
       return false;
     }

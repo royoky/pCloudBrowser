@@ -1,16 +1,11 @@
 import { useAuth } from "@/store/auth";
-import { PCloudCreateFolderMetadata } from "./models/api-return-types";
+import {
+  ListFolderData,
+  PCloudCreateFolderMetadata,
+} from "./models/api-return-types";
 
 export default class FolderService {
-  baseUrl: string;
-
-  constructor() {
-    console.log("service instanciation");
-    const authStore = useAuth();
-    this.baseUrl = authStore.baseUrl;
-  }
-
-  public async create({
+  public static async create({
     parentFolderId,
     name,
   }: {
@@ -26,10 +21,40 @@ export default class FolderService {
         folderid: parentFolderId,
         name,
       },
+      headers: {
+        authorization: `bearer ${useAuth().token}`,
+        "base-url": useAuth().baseUrl,
+      },
     });
     if (data.value?.result === 0) {
       return data.value;
     }
     throw new Error("cannot create folder :: " + data.value?.error);
+  }
+
+  public static async listFolder(
+    folderId: number,
+    params?: {
+      recursive?: boolean;
+      showDeleted?: boolean;
+      nofiles?: boolean;
+      noShares?: boolean;
+    }
+  ): Promise<ListFolderData> {
+    const { data } = await useFetch<ListFolderData>(
+      "/api/pcloud/folders/" + folderId,
+      {
+        params,
+        headers: {
+          authorization: `${useAuth().token}`,
+          "base-url": useAuth().baseUrl,
+        },
+      }
+    );
+    if (data.value) {
+      return data.value;
+    } else {
+      throw new Error();
+    }
   }
 }

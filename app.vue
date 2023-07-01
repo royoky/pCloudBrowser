@@ -26,7 +26,6 @@
 
 <script setup lang="ts">
 import { useTheme } from "vuetify";
-import AuthService from "./services/auth.service";
 
 useHead({
   title: "pCloud Browser",
@@ -34,7 +33,7 @@ useHead({
     {
       rel: "icon",
       type: "image/png",
-      href: "./assets/favicon-32x32.png",
+      href: "/favicon-32x32.ico",
     },
   ],
 });
@@ -44,8 +43,4 @@ const theme = useTheme();
 function toggleTheme() {
   theme.global.name.value = theme.global.current.value.dark ? "light" : "dark";
 }
-
-onMounted(() => {
-  AuthService.checkLocalStorage();
-});
 </script>

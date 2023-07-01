@@ -1,7 +1,7 @@
 <template>
   <div class="index">
     <div class="index__auth">
-      <v-btn v-if="!authStore.isAuthenticated" @click="openLink"
+      <v-btn v-if="!authStore.isAuthenticated" @click="loginToPCloud"
         >Login to pCloud</v-btn
       >
       <v-btn v-else @click="logout">Logout</v-btn>
@@ -20,16 +20,19 @@
 </template>
 
 <script setup lang="ts">
+import AuthService from "~~/services/auth.service";
 import {
+  ApiResultCode,
   ListFolderData,
   PCloudFile,
   PCloudFolder,
 } from "~~/services/models/api-return-types";
 import { useAuth } from "~~/store/auth";
+import FolderService from "~/services/folder.service";
 
 const authStore = useAuth();
 
-function openLink() {
+function loginToPCloud() {
   const authUrl = "https://my.pcloud.com/oauth2/authorize";
   const redirect_uri = "http://127.0.0.1:3000/oauth";
   const client_id = import.meta.env.VITE_CLIENT_ID;
@@ -45,40 +48,44 @@ const folders = ref<PCloudFolder[]>([]);
 const files = ref<PCloudFile[]>([]);
 
 const params = {
-  folderid: 0,
   recursive: true,
-  access_token: authStore.token,
 };
 
 async function fetchExample() {
-  const { data } = await useFetch<any, Error, string, any>(
-    `https://${authStore.baseUrl}/listfolder`,
-    {
-      params,
-    }
-  );
+  const data = await FolderService.listFolder(0, params);
 
-  folders.value = data.value.metadata?.contents?.filter(
-    (elt: PCloudFile | PCloudFolder) => elt.isfolder
-  );
-  files.value = data.value.metadata?.contents?.filter(
-    (elt: PCloudFile | PCloudFolder) => !elt.isfolder
-  );
+  if (data) {
+    folders.value = data.metadata?.contents?.filter(
+      (elt: PCloudFile | PCloudFolder) => elt.isfolder
+    );
+    files.value = data.metadata?.contents?.filter(
+      (elt: PCloudFile | PCloudFolder) => !elt.isfolder
+    );
+  }
 }
 
 async function logout() {
-  const { data } = await useFetch("https://eapi.pcloud.com/logout", {
-    params: { logout: true, access_token: authStore.token },
-  });
+  const res = await $fetch<ApiResultCode>(
+    `https://${authStore.baseUrl}/logout`,
+    {
+      params: { logout: true, access_token: authStore.token },
+    }
+  );
 
-  if ((data as any).result === 0) {
+  if (res.result === 0) {
     authStore.$patch({
       baseUrl: "",
       token: "",
       userId: null,
     });
+    localStorage.setItem("token", "");
+    localStorage.setItem("baseUrl", "");
   }
 }
+
+onMounted(() => {
+  AuthService.checkLocalStorage();
+});
 </script>
 
 <style lang="scss">
