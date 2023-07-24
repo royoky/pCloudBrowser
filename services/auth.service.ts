@@ -3,20 +3,29 @@ import { useAuth } from "~~/store/auth";
 import { plainToInstance } from "class-transformer";
 
 export default class AuthService {
-  static async getAuthOptions() {
+  static getAuthOptions() {
     const authUrl = "https://my.pcloud.com/oauth2/authorize";
-
+    const redirect_uri = "http://127.0.0.1:3000/oauth";
     const client_id = import.meta.env.VITE_CLIENT_ID;
+    const response_type = "code";
 
     const client_secret = import.meta.env.VITE_CLIENT_SECRET;
     return {
       authUrl,
-      params: {
-        client_id,
-        client_secret,
-        response_type: "code",
-      },
+
+      client_id,
+      client_secret,
+      response_type,
+      redirect_uri,
     };
+  }
+
+  static getPCloudAuthUrl() {
+    const { authUrl, client_id, response_type, redirect_uri } =
+      this.getAuthOptions();
+    return encodeURI(
+      `${authUrl}?client_id=${client_id}&response_type=${response_type}&redirect_uri=${redirect_uri}`
+    );
   }
 
   static async getTokenFromCode(

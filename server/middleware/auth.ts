@@ -1,4 +1,12 @@
 export default defineEventHandler((event) => {
-  event.context["authorization"] = event.node.req.headers["authorization"];
-  event.context["baseUrl"] = "https://" + event.node.req.headers["base-url"];
+  const cookies = parseCookies(event);
+
+  if (!(event.node.req.url?.includes("oauth") || cookies.token))
+    throw createError({
+      statusCode: 403,
+      statusMessage: "User Not Authorized",
+    });
+
+  event.context["authorization"] = cookies.token;
+  event.context["baseUrl"] = "https://" + cookies.hostname;
 });

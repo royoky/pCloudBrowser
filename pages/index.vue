@@ -1,14 +1,12 @@
 <template>
   <div class="index">
     <div class="index__auth">
-      <v-btn v-if="!authStore.isAuthenticated" @click="loginToPCloud"
-        >Login to pCloud</v-btn
-      >
+      <v-btn v-if="!token" @click="loginToPCloud">Login to pCloud</v-btn>
       <v-btn v-else @click="logout">Logout</v-btn>
     </div>
 
-    <div v-if="authStore.isAuthenticated">
-      <v-btn @click="fetchExample">FETCH</v-btn>
+    <div v-if="token">
+      <v-btn @click="fetchRootFolder">FETCH</v-btn>
       <AppItemList
         v-if="folders || files"
         :folders="folders"
@@ -32,15 +30,12 @@ import FolderService from "~/services/folder.service";
 
 const authStore = useAuth();
 
+const token = useCookie("token");
+const hostname = useCookie("hostname");
+
 function loginToPCloud() {
-  const authUrl = "https://my.pcloud.com/oauth2/authorize";
-  const redirect_uri = "http://127.0.0.1:3000/oauth";
-  const client_id = import.meta.env.VITE_CLIENT_ID;
-  const response_type = "code";
-  const oauthUrl = encodeURI(
-    `${authUrl}?client_id=${client_id}&response_type=${response_type}&redirect_uri=${redirect_uri}`
-  );
-  window.location.href = oauthUrl;
+  const oAuthUrl = AuthService.getPCloudAuthUrl();
+  window.location.href = oAuthUrl;
 }
 
 const refData = ref<ListFolderData | null>(null);
@@ -51,7 +46,7 @@ const params = {
   recursive: true,
 };
 
-async function fetchExample() {
+async function fetchRootFolder() {
   const data = await FolderService.listFolder(0, params);
 
   if (data) {
@@ -65,22 +60,14 @@ async function fetchExample() {
 }
 
 async function logout() {
-  const res = await $fetch<ApiResultCode>(
-    `https://${authStore.baseUrl}/logout`,
-    {
-      params: { logout: true, access_token: authStore.token },
-    }
-  );
+  authStore.$patch({
+    baseUrl: "",
+    token: "",
+    userId: null,
+  });
 
-  if (res.result === 0) {
-    authStore.$patch({
-      baseUrl: "",
-      token: "",
-      userId: null,
-    });
-    localStorage.setItem("token", "");
-    localStorage.setItem("baseUrl", "");
-  }
+  token.value = "";
+  hostname.value = "";
 }
 
 onMounted(() => {
