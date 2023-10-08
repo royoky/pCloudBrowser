@@ -1,6 +1,6 @@
-# Nuxt 3 Minimal Starter
+# pCloud Browser
 
-Look at the [nuxt 3 documentation](https://v3.nuxtjs.org) to learn more.
+The aim of this project if to create a modern interface to browse files located on a pCloud account.
 
 ## Setup
 
@@ -32,5 +32,3 @@ Locally preview production build:
 ```bash
 pnpm run preview
 ```
-
-Checkout the [deployment documentation](https://v3.nuxtjs.org/guide/deploy/presets) for more information.
