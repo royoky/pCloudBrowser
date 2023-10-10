@@ -8,8 +8,10 @@ Make sure to install the dependencies:
 
 ```bash
 # pnpm
-pnpm install --shamefully-hoist
+pnpm install
 ```
+
+Copy `.example.env.local` and rename it `.env.local`. Edit it to add your app client_id & client_secret.
 
 ## Development Server
 

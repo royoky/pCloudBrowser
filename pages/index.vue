@@ -1,40 +1,44 @@
 <template>
-  <div class="index">
-    <div class="index__auth">
-      <v-btn v-if="!authStore.isAuthenticated" @click="loginToPCloud"
-        >Login to pCloud</v-btn
-      >
-      <v-btn v-else @click="logout">Logout</v-btn>
-    </div>
+  <div class="d-flex justify-center align-center pa-6 h-100">
+    <v-btn v-if="!authStore.isAuthenticated" @click="loginToPCloud"
+      >Login to pCloud</v-btn
+    >
 
-    <div v-if="authStore.isAuthenticated">
-      <v-btn @click="fetchExample">FETCH</v-btn>
-      <AppItemList
-        v-if="folders || files"
-        :folders="folders"
-        :files="files"
-      ></AppItemList>
+    <div
+      v-if="authStore.isAuthenticated"
+      class="d-flex flex-column align-center"
+    >
+      <v-btn class="align-self-end my-6" @click="logout">Logout</v-btn>
+
+      <div class="d-flex">
+        <v-btn @click="fetchExample">FETCH</v-btn>
+        <AppItemList
+          v-if="folders?.length || files?.length"
+          :folders="folders"
+          :files="files"
+        ></AppItemList>
+      </div>
       <pre><code>{{refData}}</code></pre>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import AuthService from "~~/services/auth.service";
+import AuthService from "~/services/auth.service";
 import {
   ApiResultCode,
   ListFolderData,
   PCloudFile,
   PCloudFolder,
-} from "~~/services/models/api-return-types";
-import { useAuth } from "~~/store/auth";
+} from "~/services/models/api-return-types";
+import { useAuth } from "~/store/auth";
 import FolderService from "~/services/folder.service";
 
 const authStore = useAuth();
 
 function loginToPCloud() {
   const authUrl = "https://my.pcloud.com/oauth2/authorize";
-  const redirect_uri = "http://127.0.0.1:3000/oauth";
+  const redirect_uri = "http://localhost:3000/oauth";
   const client_id = import.meta.env.VITE_CLIENT_ID;
   const response_type = "code";
   const oauthUrl = encodeURI(
@@ -87,12 +91,3 @@ onMounted(() => {
   AuthService.checkLocalStorage();
 });
 </script>
-
-<style lang="scss">
-.index {
-  display: flex;
-  align-items: center;
-  align-content: center;
-  gap: 2 rem;
-}
-</style>

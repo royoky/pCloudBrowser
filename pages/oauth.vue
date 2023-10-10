@@ -4,8 +4,8 @@
 
 <script setup lang="ts">
 import { OAuthToken } from "~/services/models/api-return-types";
-import AuthService from "~~/services/auth.service";
-import { useAuth } from "~~/store/auth";
+import AuthService from "~/services/auth.service";
+import { useAuth } from "~/store/auth";
 
 const route = useRoute();
 const router = useRouter();
@@ -44,4 +44,3 @@ onMounted(async () => {
   }
 });
 </script>
-<style lang="scss"></style>

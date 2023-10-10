@@ -51,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { PCloudFile, PCloudFolder } from "~~/services/models/api-return-types";
+import { PCloudFile, PCloudFolder } from "~/services/models/api-return-types";
 import { DateTime } from "luxon";
 
 defineProps<{
@@ -59,9 +59,9 @@ defineProps<{
   files: PCloudFile[] | null;
 }>();
 
-function transformDateFromRFC2822(pCloudDate: string): string {
+function transformDateFromRFC2822(pCloudDate: string): string | null {
   const date = DateTime.fromRFC2822(pCloudDate);
-  if (date) return date.toISODate();
-  return "";
+  return date?.toISODate() ?? null;
 }
 </script>
+~/models/api-return-types

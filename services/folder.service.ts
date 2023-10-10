@@ -2,7 +2,7 @@ import { useAuth } from "@/store/auth";
 import {
   ListFolderData,
   PCloudCreateFolderMetadata,
-} from "./models/api-return-types";
+} from "~/models/api-return-types";
 
 export default class FolderService {
   public static async create({

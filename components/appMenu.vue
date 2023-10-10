@@ -40,9 +40,9 @@
 
 <script setup lang="ts">
 import prettyBytes from "pretty-bytes";
-import GeneralService from "~~/services/general.service";
-import { UserInfo } from "~~/services/models/api-return-types";
-import { useAuth } from "~~/store/auth";
+import GeneralService from "~/services/general.service";
+import { UserInfo } from "~/services/models/api-return-types";
+import { useAuth } from "~/store/auth";
 
 const authStore = useAuth();
 const userInfo = ref<UserInfo>();
@@ -65,3 +65,4 @@ watchEffect(async () => {
   }
 });
 </script>
+~/models/api-return-types

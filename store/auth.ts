@@ -1,5 +1,5 @@
-import AuthService from "~~/services/auth.service";
-import { UserInfo } from "../services/models/api-return-types";
+import AuthService from "~/services/auth.service";
+import { UserInfo } from "~/models/api-return-types";
 
 export const useAuth = defineStore("auth", () => {
   const token = ref<string>("");

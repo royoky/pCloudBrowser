@@ -1,5 +1,5 @@
-import { useAuth } from "~~/store/auth";
-import { ApiResultCode, UserInfo } from "./models/api-return-types";
+import { useAuth } from "~/store/auth";
+import { ApiResultCode, UserInfo } from "~/models/api-return-types";
 
 export default class GeneralService {
   public static async getUserInfo() {

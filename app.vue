@@ -13,8 +13,8 @@
             <VIcon>mdi-theme-light-dark</VIcon>
           </VBtn>
         </v-app-bar>
-        <v-bottom-navigation>
-          <div class="footer">FOOTER</div>
+        <v-bottom-navigation class="align-center">
+          <div>FOOTER</div>
         </v-bottom-navigation>
         <v-main>
           <NuxtPage />
