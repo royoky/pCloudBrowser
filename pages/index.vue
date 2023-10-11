@@ -6,11 +6,11 @@
       <v-btn class="align-self-end my-6" @click="logUserOut">Logout</v-btn>
 
       <div class="d-flex">
-        <v-btn @click="fetchRootFolder">FETCH</v-btn>
         <AppItemList
           v-if="folders?.length || files?.length"
           :folders="folders"
           :files="files"
+          @on-folder-click="(id) => fetchFolderData(id)"
         ></AppItemList>
       </div>
       <pre><code>{{refData}}</code></pre>
@@ -51,8 +51,8 @@ const params = {
   recursive: true,
 };
 
-async function fetchRootFolder() {
-  const { data } = await FolderService.listFolder(0, params);
+async function fetchFolderData(folderId: number) {
+  const { data } = await FolderService.listFolder(folderId, params);
 
   if (data.value) {
     folders.value = data.value.metadata?.contents?.filter(

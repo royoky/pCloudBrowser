@@ -2,61 +2,35 @@
   <v-list lines="two">
     <v-list-subheader inset>Folders</v-list-subheader>
 
-    <v-list-item
+    <AppFolder
       v-for="folder in folders"
       :key="folder.id"
-      :title="folder.name"
-      :subtitle="folder.modified"
+      :folder="folder"
+      @on-folder-click="$emit('onFolderClick', folder.folderid)"
     >
-      <template v-slot:prepend>
-        <v-avatar color="grey-lighten-1">
-          <v-icon color="white">mdi-folder</v-icon>
-        </v-avatar>
-      </template>
-
-      <template v-slot:append>
-        <v-btn
-          color="grey-lighten-1"
-          icon="mdi-information"
-          variant="text"
-        ></v-btn>
-      </template>
-    </v-list-item>
+    </AppFolder>
 
     <v-divider inset></v-divider>
 
     <v-list-subheader inset>Files</v-list-subheader>
 
-    <v-list-item
-      v-for="file in files"
-      :key="file.id"
-      :title="file.name"
-      :subtitle="file.modified"
-    >
-      <template v-slot:prepend>
-        <v-avatar color="yellow">
-          <v-icon color="white">{{ `mdi-file-${file.icon}` }}</v-icon>
-        </v-avatar>
-      </template>
-
-      <template v-slot:append>
-        <v-btn
-          color="grey-lighten-1"
-          icon="mdi-information"
-          variant="text"
-        ></v-btn>
-      </template>
-    </v-list-item>
+    <AppFile v-for="file in files" :key="file.id" :file="file"> </AppFile>
   </v-list>
 </template>
 
 <script setup lang="ts">
 import type { PCloudFile, PCloudFolder } from "~/models/api-return-types";
 import { DateTime } from "luxon";
+import AppFolder from "./AppFolder.vue";
+import AppFile from "./AppFile.vue";
 
 defineProps<{
   folders: PCloudFolder[] | null;
   files: PCloudFile[] | null;
+}>();
+
+defineEmits<{
+  onFolderClick: [id: number];
 }>();
 
 function transformDateFromRFC2822(pCloudDate: string): string | null {
@@ -64,4 +38,3 @@ function transformDateFromRFC2822(pCloudDate: string): string | null {
   return date?.toISODate() ?? null;
 }
 </script>
-~/models/api-return-types
