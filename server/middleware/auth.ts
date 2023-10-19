@@ -1,4 +1,13 @@
 export default defineEventHandler((event) => {
-  event.context["authorization"] = event.node.req.headers["authorization"];
-  event.context["baseUrl"] = "https://" + event.node.req.headers["base-url"];
+  const token = getCookie(event, "token");
+  const hostname = getCookie(event, "hostname");
+
+  if (event.path.includes("/api/")) {
+    if (!token)
+      throw createError({
+        statusCode: 403,
+        statusMessage: "User is not logged in",
+      });
+    event.context.auth = { token, hostname };
+  }
 });

@@ -1,14 +1,9 @@
 <template>
   <div class="d-flex justify-center align-center pa-6 h-100">
-    <v-btn v-if="!authStore.isAuthenticated" @click="loginToPCloud"
-      >Login to pCloud</v-btn
-    >
+    <v-btn v-if="!authenticated" @click="loginToPCloud">Login to pCloud</v-btn>
 
-    <div
-      v-if="authStore.isAuthenticated"
-      class="d-flex flex-column align-center"
-    >
-      <v-btn class="align-self-end my-6" @click="logout">Logout</v-btn>
+    <div v-if="authenticated" class="d-flex flex-column align-center">
+      <v-btn class="align-self-end my-6" @click="logUserOut">Logout</v-btn>
 
       <div class="d-flex">
         <v-btn @click="fetchExample">FETCH</v-btn>
@@ -24,17 +19,18 @@
 </template>
 
 <script setup lang="ts">
-import AuthService from "~/services/auth.service";
 import {
-  ApiResultCode,
   ListFolderData,
   PCloudFile,
   PCloudFolder,
-} from "~/services/models/api-return-types";
+} from "~/models/api-return-types";
 import { useAuth } from "~/store/auth";
 import FolderService from "~/services/folder.service";
+import { storeToRefs } from "pinia";
 
-const authStore = useAuth();
+const { logout } = useAuth();
+const { authenticated } = storeToRefs(useAuth());
+const router = useRouter();
 
 function loginToPCloud() {
   const authUrl = "https://my.pcloud.com/oauth2/authorize";
@@ -56,38 +52,21 @@ const params = {
 };
 
 async function fetchExample() {
-  const data = await FolderService.listFolder(0, params);
+  debugger;
+  const { data } = await FolderService.listFolder(0, params);
 
-  if (data) {
-    folders.value = data.metadata?.contents?.filter(
+  if (data.value) {
+    folders.value = data.value.metadata?.contents?.filter(
       (elt: PCloudFile | PCloudFolder) => elt.isfolder
     );
-    files.value = data.metadata?.contents?.filter(
+    files.value = data.value.metadata?.contents?.filter(
       (elt: PCloudFile | PCloudFolder) => !elt.isfolder
     );
   }
 }
 
-async function logout() {
-  const res = await $fetch<ApiResultCode>(
-    `https://${authStore.baseUrl}/logout`,
-    {
-      params: { logout: true, access_token: authStore.token },
-    }
-  );
-
-  if (res.result === 0) {
-    authStore.$patch({
-      baseUrl: "",
-      token: "",
-      userId: null,
-    });
-    localStorage.setItem("token", "");
-    localStorage.setItem("baseUrl", "");
-  }
+async function logUserOut() {
+  logout();
+  router.push("/");
 }
-
-onMounted(() => {
-  AuthService.checkLocalStorage();
-});
 </script>

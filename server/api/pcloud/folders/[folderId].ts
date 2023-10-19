@@ -8,11 +8,14 @@ export default defineEventHandler(async (event: H3Event) => {
     folderid: folderId,
     ...query,
   };
-  const baseUrl = event.context["baseUrl"];
-  const headers = { authorization: `Bearer ${event.context?.authorization}` };
-  const res = await $fetch<ListFolderData>(baseUrl + "/listfolder", {
-    params,
-    headers,
-  });
+  const baseUrl = event.context.auth.hostname;
+  const headers = { authorization: `Bearer ${event.context.auth.token}` };
+  const res = await $fetch<ListFolderData>(
+    "https://" + baseUrl + "/listfolder",
+    {
+      params,
+      headers,
+    }
+  );
   return res;
 });
