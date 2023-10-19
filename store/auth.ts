@@ -1,32 +1,18 @@
-import AuthService from "~/services/auth.service";
-import { UserInfo } from "~/models/api-return-types";
-
 export const useAuth = defineStore("auth", () => {
-  const token = ref<string>("");
-  const user = ref<string>("");
-  const userId = ref<number | null>(null);
-  const locationId = ref<number | null>(null);
-  const baseUrl = ref<string>("");
+  const authenticated = ref<boolean>(false);
+  const loading = ref<boolean>(false);
 
-  async function getUserInfo(): Promise<UserInfo> {
-    return AuthService.getMe();
+  function logout() {
+    const token = useCookie("token");
+    const hostname = useCookie("hostname");
+    authenticated.value = false;
+    token.value = null;
+    hostname.value = null;
   }
-
-  async function logout() {
-    if (user) {
-      await AuthService.logout();
-    }
-  }
-
-  const isAuthenticated = computed((): boolean => !!token.value);
 
   return {
-    token,
-    user,
-    userId,
-    locationId,
-    baseUrl,
-    getUserInfo,
-    isAuthenticated,
+    loading,
+    authenticated,
+    logout,
   };
 });

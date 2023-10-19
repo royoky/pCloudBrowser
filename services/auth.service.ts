@@ -40,29 +40,9 @@ export default class AuthService {
     }
   }
 
-  static async getMe(): Promise<UserInfo> {
-    const userDto = await $fetch(`https://${useAuth().baseUrl}/userinfo`, {
-      params: { access_token: useAuth().token },
-    });
+  /* static async getMe(): Promise<UserInfo> {
+    const userDto = await $fetch(`https://${useAuth().baseUrl}/userinfo`);
     const user = plainToInstance(UserInfo, userDto);
     return user;
-  }
-
-  static checkLocalStorage() {
-    const token = localStorage.getItem("token");
-    const baseUrl = localStorage.getItem("baseUrl");
-    if (token && baseUrl) {
-      useAuth().token = token;
-      useAuth().baseUrl = baseUrl;
-    }
-  }
-
-  static async logout(): Promise<boolean> {
-    try {
-      await $fetch(`https://${useAuth().baseUrl}/logout`);
-    } catch (e) {
-      return false;
-    }
-    return true;
-  }
+  } */
 }

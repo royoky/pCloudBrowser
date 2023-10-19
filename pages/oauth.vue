@@ -3,39 +3,38 @@
 </template>
 
 <script setup lang="ts">
-import { OAuthToken } from "~/services/models/api-return-types";
+import { storeToRefs } from "pinia";
+import { OAuthToken } from "~/models/api-return-types";
 import AuthService from "~/services/auth.service";
 import { useAuth } from "~/store/auth";
 
 const route = useRoute();
 const router = useRouter();
-const authStore = useAuth();
-const { code, state, locationid, hostname }: Record<string, any> = route.query;
+const { authenticated, loading } = storeToRefs(useAuth());
+const { code, hostname }: Record<string, any> = route.query;
 
 const displayedText = ref<string>("Logging to pCloud ...");
 
-authStore.$subscribe((mutation, state) => {
-  if (state.token) {
+watchEffect(() => {
+  if (authenticated.value) {
     displayedText.value = "Successfully Logged in !";
-    localStorage.setItem("token", authStore.token);
-    localStorage.setItem("baseUrl", authStore.baseUrl);
-    router.push("/");
+    setTimeout(() => router.push("/"), 1000);
   }
 });
 
 onMounted(async () => {
   try {
+    loading.value = true;
     const oAuthData: OAuthToken = await AuthService.getTokenFromCode(
       code,
       hostname
     );
     if (oAuthData?.access_token) {
-      authStore.$patch({
-        baseUrl: hostname,
-        token: oAuthData.access_token,
-        userId: oAuthData.userid,
-        locationId: oAuthData.locationid,
-      });
+      const token = useCookie("token");
+      const hostnameCookie = useCookie("hostname");
+      token.value = oAuthData.access_token;
+      hostnameCookie.value = hostname;
+      authenticated.value = true;
     } else {
       throw new Error("cannot get token :: " + oAuthData.result);
     }
