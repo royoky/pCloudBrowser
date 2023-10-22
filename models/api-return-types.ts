@@ -27,6 +27,7 @@ export type PCloudCommonMetadata = {
   thumb: boolean;
   isshared: boolean;
   icon: string;
+  parentfolderid: number;
 };
 
 export interface PCloudFolder extends PCloudCommonMetadata {
@@ -34,14 +35,12 @@ export interface PCloudFolder extends PCloudCommonMetadata {
   folderid: number;
   contents: [];
 }
-
 export interface PCloudCreateFolderMetadata extends PCloudCommonMetadata {
   folderid: number;
 }
 
 export interface PCloudFile extends PCloudCommonMetadata {
   contenttype: string;
-  parentfolderid: number;
   hash: number;
   category: number;
   fileid: number;

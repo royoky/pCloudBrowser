@@ -1,10 +1,5 @@
 <template>
-  <v-navigation-drawer
-    v-if="authStore.authenticated"
-    rail
-    permanent
-    expand-on-hover
-  >
+  <v-navigation-drawer v-if="authenticated" rail permanent expand-on-hover>
     <v-list>
       <v-list-item :title="email" :subtitle="quota">
         <template v-slot:prepend>
@@ -39,9 +34,8 @@ import prettyBytes from "pretty-bytes";
 import GeneralService from "~/services/general.service";
 import { useAuth } from "~/store/auth";
 
-const authStore = useAuth();
-
 const { data: userInfo, error, refresh } = await GeneralService.getUserInfo();
+const { authenticated } = useAuth();
 
 const items = [
   { text: "My Files", icon: "mdi-folder" },
@@ -64,7 +58,7 @@ const quota = computed((): string => {
 });
 
 watchEffect(async () => {
-  if (authStore.authenticated) {
+  if (authenticated) {
     refresh()
   }
 });

@@ -9,8 +9,8 @@ export default defineNuxtRouteMiddleware((to) => {
     return;
   }
 
-  if (token.value) {
-    authenticated.value = true; // update the state to authenticated
+  if (token.value && !authenticated.value) {
+    authenticated.value = true;
   }
 
   if (!token.value && to.path !== "/") {
