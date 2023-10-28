@@ -1,5 +1,6 @@
 <template>
-  <div class="d-flex">
+  <div class="d-flex flex-column">
+    <AppBreadcrumbs :items="breadcrumbsItems" />
     <AppItemList
       :folders="folders"
       :files="files"
@@ -18,6 +19,8 @@ import {
 } from "~/models/api-return-types";
 
 const folderId = ref<number>(0);
+
+const breadcrumbsItems = ref<string[]>(["All Files"]);
 
 const folders = computed(
   (): PCloudFolder[] =>
@@ -51,12 +54,17 @@ const { data, pending, error, execute } = await useFetch<ListFolderData>(url, {
 function onFolderClick(clickedId: number | null) {
   if (clickedId) {
     folderId.value = clickedId;
+    const folderName = folders.value.find(
+      (folder) => folder.folderid === folderId.value
+    )?.name;
+    breadcrumbsItems.value.push(folderName ?? folderId.value.toString());
   }
 }
 
 function onParentFolderClick() {
   if (parentFolderId.value != null) {
     folderId.value = parentFolderId.value;
+    breadcrumbsItems.value.pop();
   }
 }
 </script>
