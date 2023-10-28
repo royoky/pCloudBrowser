@@ -1,6 +1,17 @@
 <template>
   <v-list lines="two">
     <v-list-subheader inset>Folders</v-list-subheader>
+    <v-list-item
+      v-if="!isTopLevel"
+      title=".."
+      @click="$emit('onParentFolderClick')"
+    >
+      <template v-slot:prepend>
+        <v-avatar color="grey-lighten-1">
+          <v-icon color="white">mdi-folder</v-icon>
+        </v-avatar>
+      </template>
+    </v-list-item>
 
     <AppFolder
       v-for="folder in folders"
@@ -12,8 +23,7 @@
 
     <v-divider inset></v-divider>
 
-    <v-list-subheader inset>Files</v-list-subheader>
-
+    <v-list-subheader v-if="files?.length" inset>Files</v-list-subheader>
     <AppFile v-for="file in files" :key="file.id" :file="file"> </AppFile>
   </v-list>
 </template>
@@ -27,10 +37,12 @@ import AppFile from "./AppFile.vue";
 defineProps<{
   folders: PCloudFolder[] | null;
   files: PCloudFile[] | null;
+  isTopLevel: boolean;
 }>();
 
 defineEmits<{
-  onFolderClick: [id: number];
+  (e: "onFolderClick", id: number): void;
+  (e: "onParentFolderClick"): void;
 }>();
 
 function transformDateFromRFC2822(pCloudDate: string): string | null {

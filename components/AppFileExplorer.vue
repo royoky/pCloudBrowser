@@ -1,10 +1,11 @@
 <template>
   <div class="d-flex">
     <AppItemList
-      v-if="folders?.length || files?.length"
       :folders="folders"
       :files="files"
+      :is-top-level="isTopLEvel"
       @on-folder-click="onFolderClick"
+      @onParentFolderClick="onParentFolderClick"
     ></AppItemList>
   </div>
 </template>
@@ -35,6 +36,8 @@ const parentFolderId = computed(
   (): number | null => data.value?.metadata.parentfolderid ?? null
 );
 
+const isTopLEvel = computed((): boolean => parentFolderId.value === null);
+
 const params = {
   recursive: true,
 };
@@ -45,8 +48,16 @@ const { data, pending, error, execute } = await useFetch<ListFolderData>(url, {
   params,
 });
 
-function onFolderClick(clickedId: number) {
-  folderId.value = clickedId;
+function onFolderClick(clickedId: number | null) {
+  if (clickedId) {
+    folderId.value = clickedId;
+  }
+}
+
+function onParentFolderClick() {
+  if (parentFolderId.value != null) {
+    folderId.value = parentFolderId.value;
+  }
 }
 </script>
 
