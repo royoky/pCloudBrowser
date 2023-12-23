@@ -20,7 +20,7 @@
   </v-list-item>
 </template>
 <script setup lang="ts">
-import { PCloudFolder } from "~/models/api-return-types";
+import type { PCloudFolder } from '~/models/api-return-types';
 
 defineProps<{
   folder: PCloudFolder;

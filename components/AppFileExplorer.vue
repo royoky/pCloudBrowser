@@ -12,11 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-  ListFolderData,
-  PCloudFile,
-  PCloudFolder,
-} from "~/models/api-return-types";
+import type { PCloudFolder, PCloudFile, ListFolderData } from '~/models/api-return-types';
 
 const folderId = ref<number>(0);
 
