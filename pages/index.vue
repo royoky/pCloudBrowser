@@ -6,7 +6,7 @@
       <v-btn class="align-self-end my-6" @click="logUserOut">Logout</v-btn>
 
       <div class="d-flex">
-        <v-btn @click="fetchExample">FETCH</v-btn>
+        <v-btn @click="fetchRootFolder">FETCH</v-btn>
         <AppItemList
           v-if="folders?.length || files?.length"
           :folders="folders"
@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import {
+import type {
   ListFolderData,
   PCloudFile,
   PCloudFolder,
@@ -51,8 +51,7 @@ const params = {
   recursive: true,
 };
 
-async function fetchExample() {
-  debugger;
+async function fetchRootFolder() {
   const { data } = await FolderService.listFolder(0, params);
 
   if (data.value) {

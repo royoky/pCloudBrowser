@@ -1,6 +1,6 @@
 <template>
   <v-navigation-drawer
-    v-if="authStore.isAuthenticated"
+    v-if="authStore.authenticated"
     rail
     permanent
     expand-on-hover
@@ -41,11 +41,11 @@
 <script setup lang="ts">
 import prettyBytes from "pretty-bytes";
 import GeneralService from "~/services/general.service";
-import { UserInfo } from "~/services/models/api-return-types";
 import { useAuth } from "~/store/auth";
 
 const authStore = useAuth();
-const userInfo = ref<UserInfo>();
+
+const { data: userInfo, error, refresh } = await GeneralService.getUserInfo();
 
 const email = computed(() => userInfo.value?.email ?? "");
 const quota = computed((): string => {
@@ -58,11 +58,8 @@ const quota = computed((): string => {
 });
 
 watchEffect(async () => {
-  if (authStore.isAuthenticated) {
-    userInfo.value = await GeneralService.getUserInfo();
-  } else {
-    userInfo.value = undefined;
+  if (authStore.authenticated) {
+    refresh()
   }
 });
 </script>
-~/models/api-return-types

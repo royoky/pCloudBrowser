@@ -4,7 +4,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from "pinia";
-import { OAuthToken } from "~/models/api-return-types";
+import type { OAuthToken } from "~/models/api-return-types";
 import AuthService from "~/services/auth.service";
 import { useAuth } from "~/store/auth";
 

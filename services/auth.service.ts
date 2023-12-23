@@ -1,4 +1,4 @@
-import { OAuthToken, UserInfo } from "~/models/api-return-types";
+import type { OAuthToken } from "~/models/api-return-types";
 import { useAuth } from "~/store/auth";
 import { plainToInstance } from "class-transformer";
 
@@ -40,9 +40,4 @@ export default class AuthService {
     }
   }
 
-  /* static async getMe(): Promise<UserInfo> {
-    const userDto = await $fetch(`https://${useAuth().baseUrl}/userinfo`);
-    const user = plainToInstance(UserInfo, userDto);
-    return user;
-  } */
 }

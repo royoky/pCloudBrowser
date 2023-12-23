@@ -1,5 +1,7 @@
 import { H3Event } from "h3";
-import { ListFolderData } from "~/models/api-return-types";
+import { z } from "zod";
+
+const createFolderBodySchema = z.object({ name: z.string() });
 
 export default defineEventHandler(async (event: H3Event) => {
   const query = getQuery(event);
@@ -10,12 +12,31 @@ export default defineEventHandler(async (event: H3Event) => {
   };
   const baseUrl = event.context.auth.hostname;
   const headers = { authorization: `Bearer ${event.context.auth.token}` };
-  const res = await $fetch<ListFolderData>(
-    "https://" + baseUrl + "/listfolder",
-    {
-      params,
-      headers,
-    }
-  );
-  return res;
+  let url = "",
+    body;
+  switch (event.method) {
+    case "GET":
+      url = "https://" + baseUrl + "/listfolder";
+      break;
+    case "POST":
+      body = await readValidatedBody(event, createFolderBodySchema.parse);
+      Object.assign(params, { name: body.name });
+      url = "https://" + baseUrl + "/createfolder";
+      break;
+    case "PATCH":
+      body = await readValidatedBody(event, createFolderBodySchema.parse);
+      Object.assign(params, { toname: body.name });
+      url = "https://" + baseUrl + "/renamefolder";
+      break;
+    case "DELETE":
+      url = "https://" + baseUrl + "/deletefolderrecursive";
+      break;
+    default:
+      break;
+  }
+
+  return $fetch(url, {
+    params,
+    headers,
+  });
 });

@@ -1,6 +1,5 @@
 import { useAuth } from "@/store/auth";
-import { AsyncData } from "nuxt/app";
-import {
+import type {
   ListFolderData,
   PCloudCreateFolderMetadata,
 } from "~/models/api-return-types";
@@ -35,11 +34,9 @@ export default class FolderService {
     }>(`$api/pcloud/folders`, {
       params: {
         folderid: parentFolderId,
-        name,
       },
       method: "POST",
       body: {
-        parentFolderId,
         name,
       },
     });

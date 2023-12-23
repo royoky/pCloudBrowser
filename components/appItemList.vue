@@ -51,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { PCloudFile, PCloudFolder } from "~/services/models/api-return-types";
+import type { PCloudFile, PCloudFolder } from "~/models/api-return-types";
 import { DateTime } from "luxon";
 
 defineProps<{
