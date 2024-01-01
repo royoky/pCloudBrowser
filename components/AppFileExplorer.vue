@@ -1,5 +1,5 @@
 <template>
-  <div class="d-flex flex-column">
+  <div class="app-file-explorer d-flex flex-column">
     <AppBreadcrumbs :items="breadcrumbsItems" />
     <AppItemList
       :folders="folders"
@@ -12,7 +12,11 @@
 </template>
 
 <script setup lang="ts">
-import type { PCloudFolder, PCloudFile, ListFolderData } from '~/models/api-return-types';
+import type {
+  ListFolderData,
+  PCloudFile,
+  PCloudFolder,
+} from "~/models/api-return-types";
 
 const folderId = ref<number>(0);
 
@@ -65,4 +69,8 @@ function onParentFolderClick() {
 }
 </script>
 
-<style lang="scss" scoped></style>
+<style lang="scss">
+.app-file-explorer {
+  width: 25rem;
+}
+</style>
