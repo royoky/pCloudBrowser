@@ -1,6 +1,4 @@
 import type { OAuthToken } from "~/models/api-return-types";
-import { useAuth } from "~/store/auth";
-import { plainToInstance } from "class-transformer";
 
 export default class AuthService {
   static async getAuthOptions() {

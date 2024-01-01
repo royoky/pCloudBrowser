@@ -4,28 +4,13 @@
 
     <div v-if="authenticated" class="d-flex flex-column align-center">
       <v-btn class="align-self-end my-6" @click="logUserOut">Logout</v-btn>
-
-      <div class="d-flex">
-        <v-btn @click="fetchRootFolder">FETCH</v-btn>
-        <AppItemList
-          v-if="folders?.length || files?.length"
-          :folders="folders"
-          :files="files"
-        ></AppItemList>
-      </div>
-      <pre><code>{{refData}}</code></pre>
+      <AppFileExplorer />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import type {
-  ListFolderData,
-  PCloudFile,
-  PCloudFolder,
-} from "~/models/api-return-types";
 import { useAuth } from "~/store/auth";
-import FolderService from "~/services/folder.service";
 import { storeToRefs } from "pinia";
 
 const { logout } = useAuth();
@@ -41,27 +26,6 @@ function loginToPCloud() {
     `${authUrl}?client_id=${client_id}&response_type=${response_type}&redirect_uri=${redirect_uri}`
   );
   window.location.href = oauthUrl;
-}
-
-const refData = ref<ListFolderData | null>(null);
-const folders = ref<PCloudFolder[]>([]);
-const files = ref<PCloudFile[]>([]);
-
-const params = {
-  recursive: true,
-};
-
-async function fetchRootFolder() {
-  const { data } = await FolderService.listFolder(0, params);
-
-  if (data.value) {
-    folders.value = data.value.metadata?.contents?.filter(
-      (elt: PCloudFile | PCloudFolder) => elt.isfolder
-    );
-    files.value = data.value.metadata?.contents?.filter(
-      (elt: PCloudFile | PCloudFolder) => !elt.isfolder
-    );
-  }
 }
 
 async function logUserOut() {
