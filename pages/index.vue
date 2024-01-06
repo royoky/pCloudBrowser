@@ -1,5 +1,5 @@
 <template>
-  <div class="d-flex justify-center align-center pa-6 h-100">
+  <div class="d-flex justify-center align-top pa-6 h-100">
     <v-btn v-if="!authenticated" @click="loginToPCloud">Login to pCloud</v-btn>
 
     <div v-if="authenticated" class="d-flex flex-column align-center">
@@ -19,7 +19,7 @@ const router = useRouter();
 
 function loginToPCloud() {
   const authUrl = "https://my.pcloud.com/oauth2/authorize";
-  const redirect_uri = "http://localhost:3000/oauth";
+  const redirect_uri = import.meta.env.VITE_REDIRECT_URI;
   const client_id = import.meta.env.VITE_CLIENT_ID;
   const response_type = "code";
   const oauthUrl = encodeURI(
