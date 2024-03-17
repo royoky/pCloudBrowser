@@ -1,28 +1,31 @@
+<script setup lang="ts">
+import type { PCloudFile } from '~/models/api-return-types'
+
+defineProps<{
+  file: PCloudFile
+}>()
+</script>
+
 <template>
-  <v-list-item
+  <VListItem
     :title="file.name"
     :subtitle="file.modified"
     @click="() => console.log('clicked')"
   >
-    <template v-slot:prepend>
-      <v-avatar color="yellow">
-        <v-icon color="white">{{ `mdi-file-${file.icon}` }}</v-icon>
-      </v-avatar>
+    <template #prepend>
+      <VAvatar color="yellow">
+        <VIcon color="white">
+          {{ `mdi-file-${file.icon}` }}
+        </VIcon>
+      </VAvatar>
     </template>
 
-    <template v-slot:append>
-      <v-btn
+    <template #append>
+      <VBtn
         color="grey-lighten-1"
         icon="mdi-information"
         variant="text"
-      ></v-btn>
+      />
     </template>
-  </v-list-item>
+  </VListItem>
 </template>
-<script setup lang="ts">
-import type { PCloudFile } from '~/models/api-return-types';
-
-defineProps<{
-  file: PCloudFile;
-}>();
-</script>

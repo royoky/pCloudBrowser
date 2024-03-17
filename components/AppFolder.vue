@@ -1,33 +1,35 @@
+<script setup lang="ts">
+import type { PCloudFolder } from '~/models/api-return-types'
+
+defineProps<{
+  folder: PCloudFolder
+}>()
+
+defineEmits<{
+  onFolderClick: [id: number]
+}>()
+</script>
+
 <template>
-  <v-list-item
+  <VListItem
     :title="folder.name"
     :subtitle="folder.modified"
     @click="$emit('onFolderClick', folder.id)"
   >
-    <template v-slot:prepend>
-      <v-avatar color="grey-lighten-1">
-        <v-icon color="white">mdi-folder</v-icon>
-      </v-avatar>
+    <template #prepend>
+      <VAvatar color="grey-lighten-1">
+        <VIcon color="white">
+          mdi-folder
+        </VIcon>
+      </VAvatar>
     </template>
 
-    <template v-slot:append>
-      <v-btn
+    <template #append>
+      <VBtn
         color="grey-lighten-1"
         icon="mdi-information"
         variant="text"
-      ></v-btn>
+      />
     </template>
-  </v-list-item>
+  </VListItem>
 </template>
-<script setup lang="ts">
-import type { PCloudFolder } from '~/models/api-return-types';
-
-defineProps<{
-  folder: PCloudFolder;
-}>();
-
-defineEmits<{
-  onFolderClick: [id: number];
-}>();
-function onFolderClick() {}
-</script>

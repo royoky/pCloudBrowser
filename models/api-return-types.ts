@@ -1,50 +1,50 @@
-import { DateTime } from "luxon";
+import type { DateTime } from 'luxon'
 
 export interface ApiResultCode {
-  result: number;
-  error?: string;
+  result: number
+  error?: string
 }
 
 export interface OAuthToken extends ApiResultCode {
-  userid: number;
-  locationid: number;
-  token_type: string;
-  access_token: string;
+  userid: number
+  locationid: number
+  token_type: string
+  access_token: string
 }
 
 export interface ListFolderData extends ApiResultCode {
-  metadata: PCloudFolder;
+  metadata: PCloudFolder
 }
 
-export type PCloudCommonMetadata = {
-  path: string;
-  name: string;
-  isfolder: boolean;
-  id: number;
-  ismine: boolean;
-  created: string;
-  modified: string;
-  thumb: boolean;
-  isshared: boolean;
-  icon: string;
-  parentfolderid: number;
-};
+export interface PCloudCommonMetadata {
+  path: string
+  name: string
+  isfolder: boolean
+  id: number
+  ismine: boolean
+  created: string
+  modified: string
+  thumb: boolean
+  isshared: boolean
+  icon: string
+  parentfolderid: number
+}
 
 export interface PCloudFolder extends PCloudCommonMetadata {
-  comments: number;
-  folderid: number;
-  contents: [];
+  comments: number
+  folderid: number
+  contents: []
 }
 export interface PCloudCreateFolderMetadata extends PCloudCommonMetadata {
-  folderid: number;
+  folderid: number
 }
 
 export interface PCloudFile extends PCloudCommonMetadata {
-  contenttype: string;
-  hash: number;
-  category: number;
-  fileid: number;
-  size: number;
+  contenttype: string
+  hash: number
+  category: number
+  fileid: number
+  size: number
 }
 
 export class UserInfo {
@@ -56,6 +56,6 @@ export class UserInfo {
     public premiumexpires: DateTime,
     public quota: number,
     public usedquota: number,
-    public language: string
+    public language: string,
   ) {}
 }
