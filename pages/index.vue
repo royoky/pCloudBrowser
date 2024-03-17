@@ -1,35 +1,31 @@
+<script setup lang="ts">
+import { storeToRefs } from 'pinia'
+import { useAuth } from '~/store/auth'
+
+const { logout, login } = useAuth()
+const { authenticated } = storeToRefs(useAuth())
+const router = useRouter()
+
+async function logUserOut() {
+  logout()
+  router.push('/')
+}
+</script>
+
 <template>
-  <div class="d-flex justify-center align-top pa-6 h-100">
-    <v-btn v-if="!authenticated" @click="loginToPCloud">Login to pCloud</v-btn>
+  <div
+    class="d-flex justify-center pa-6 h-100"
+    :class="[authenticated ? 'align-top' : 'align-center']"
+  >
+    <VBtn v-if="!authenticated" @click="login">
+      Login to pCloud
+    </VBtn>
 
     <div v-if="authenticated" class="d-flex flex-column align-center">
-      <v-btn class="align-self-end my-6" @click="logUserOut">Logout</v-btn>
+      <VBtn class="align-self-end my-6" @click="logUserOut">
+        Logout
+      </VBtn>
       <AppFileExplorer />
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { useAuth } from "~/store/auth";
-import { storeToRefs } from "pinia";
-
-const { logout } = useAuth();
-const { authenticated } = storeToRefs(useAuth());
-const router = useRouter();
-
-function loginToPCloud() {
-  const authUrl = "https://my.pcloud.com/oauth2/authorize";
-  const redirect_uri = import.meta.env.VITE_REDIRECT_URI;
-  const client_id = import.meta.env.VITE_CLIENT_ID;
-  const response_type = "code";
-  const oauthUrl = encodeURI(
-    `${authUrl}?client_id=${client_id}&response_type=${response_type}&redirect_uri=${redirect_uri}`
-  );
-  window.location.href = oauthUrl;
-}
-
-async function logUserOut() {
-  logout();
-  router.push("/");
-}
-</script>

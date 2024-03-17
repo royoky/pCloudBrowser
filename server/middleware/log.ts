@@ -1,3 +1,4 @@
 export default defineEventHandler((event) => {
-  console.log("New request: " + event.path);
-});
+  // eslint-disable-next-line no-console
+  console.info(`New request: ${event.path}`)
+})

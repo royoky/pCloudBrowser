@@ -1,23 +1,24 @@
 // https://v3.nuxtjs.org/api/configuration/nuxt.config
 export default defineNuxtConfig({
   modules: [
-    "@vueuse/nuxt",
+    '@vueuse/nuxt',
+    'nuxt-module-eslint-config',
     [
-      "@pinia/nuxt",
+      '@pinia/nuxt',
       {
-        autoImports: ["defineStore"],
+        autoImports: ['defineStore'],
       },
     ],
     [
-      "vuetify-nuxt-module",
+      'vuetify-nuxt-module',
       {
         moduleOptions: {
           prefersColorScheme: true,
           prefersColorSchemeOptions: {
-            cookieName: "vuetify-theme",
+            cookieName: 'vuetify-theme',
           },
         },
-        vuetifyOptions: "./vuetify.config.ts",
+        vuetifyOptions: './vuetify.config.ts',
       },
     ],
   ],
@@ -26,4 +27,4 @@ export default defineNuxtConfig({
       openAPI: true,
     },
   },
-});
+})
