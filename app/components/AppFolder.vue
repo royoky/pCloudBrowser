@@ -29,6 +29,7 @@ defineEmits<{
         color="grey-lighten-1"
         icon="mdi-information"
         variant="text"
+        @click.stop="console.log(`info about folder id${folder.id}`)"
       />
     </template>
   </VListItem>
