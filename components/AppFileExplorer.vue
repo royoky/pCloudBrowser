@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppContextMenu from './AppContextMenu.vue'
 import type {
   ListFolderData,
   PCloudFile,
@@ -49,18 +50,54 @@ function onParentFolderClick() {
     breadcrumbsItems.value.pop()
   }
 }
+
+const contextMenu = ref<InstanceType<typeof AppContextMenu>>()
+const isContextMenuOpen = ref<boolean>(false)
+
+const folderMenuItems = [
+  { value: 1, text: 'Delete folder' },
+  { value: 2, text: 'Copy folder' },
+  { value: 3, text: 'Move folder' },
+]
+
+const fileMenuItems = [
+  { value: 4, text: 'Delete file' },
+  { value: 5, text: 'Copy file' },
+  { value: 6, text: 'Move file' },
+]
+
+const menuItems = ref<{ text: string | number, value: number | string }[]>([])
+
+function onContextMenu(id: number, isFolder: boolean) {
+  isContextMenuOpen.value = false
+  menuItems.value = isFolder ? folderMenuItems : fileMenuItems
+  contextMenu.value?.show()
+}
+
+function onMenuClicked(_value: number | string) {
+  // TODO
+}
 </script>
 
 <template>
   <div class="app-file-explorer d-flex flex-column">
     <AppBreadcrumbs :items="breadcrumbsItems" />
-    <AppItemList
-      :folders="folders"
-      :files="files"
-      :is-top-level="isTopLEvel"
-      @on-folder-click="onFolderClick"
-      @on-parent-folder-click="onParentFolderClick"
-    />
+    <AppContextMenu
+      ref="contextMenu"
+      v-model="isContextMenuOpen"
+      :menu-items
+      @on-menu-clicked="onMenuClicked"
+    >
+      <AppItemList
+        :folders="folders"
+        :files="files"
+        :is-top-level="isTopLEvel"
+        @on-folder-click="onFolderClick"
+        @on-parent-folder-click="onParentFolderClick"
+        @on-file-context-menu="onContextMenu"
+        @on-context-menu="(folderId, isFolder) => onContextMenu(folderId, isFolder)"
+      />
+    </AppContextMenu>
   </div>
 </template>
 
