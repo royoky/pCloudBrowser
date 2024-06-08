@@ -71,14 +71,29 @@ const fileMenuItems = [
 
 const menuItems = ref<{ text: string | number, value: number | string }[]>([])
 
+const selectedId = ref<string>()
+
 function onContextMenu(id: string, isFolder: boolean) {
   isContextMenuOpen.value = false
-  menuItems.value = isFolder ? folderMenuItems : fileMenuItems
-  contextMenu.value?.show()
+  selectedId.value = id
+  nextTick(() => {
+    menuItems.value = isFolder ? folderMenuItems : fileMenuItems
+    contextMenu.value?.show()
+  })
 }
 
-function onMenuClicked(_value: number | string) {
-  // TODO
+async function onMenuClicked(value: number | string) {
+  switch (value) {
+    case 1:
+      try {
+        const res = await $fetch<{ success: boolean, deletedCount: number }>(`/api/pcloud/folders/${selectedId.value}`, { method: 'delete' })
+        if (res.success)
+          refresh()
+      }
+      catch (error) {
+        console.error(error)
+      }
+  }
 }
 </script>
 
