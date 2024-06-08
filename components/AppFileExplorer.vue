@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppContextMenu from './AppContextMenu.vue'
 import type {
+  ApiResultCode,
   ListFolderData,
   PCloudFile,
   PCloudFolder,
@@ -13,7 +14,7 @@ const breadcrumbsItems = ref<string[]>(['All Files'])
 const url = computed((): string => `/api/pcloud/folders/${folderId.value}`)
 const params = { recursive: true }
 
-const { data } = await useFetch<ListFolderData>(url, { params })
+const { data, refresh } = await useFetch<ListFolderData>(url, { params })
 
 const folders = computed(
   (): PCloudFolder[] =>
@@ -68,14 +69,29 @@ const fileMenuItems = [
 
 const menuItems = ref<{ text: string | number, value: number | string }[]>([])
 
+const selectedId = ref<number>()
+
 function onContextMenu(id: number, isFolder: boolean) {
   isContextMenuOpen.value = false
-  menuItems.value = isFolder ? folderMenuItems : fileMenuItems
-  contextMenu.value?.show()
+  selectedId.value = id
+  nextTick(() => {
+    menuItems.value = isFolder ? folderMenuItems : fileMenuItems
+    contextMenu.value?.show()
+  })
 }
 
-function onMenuClicked(_value: number | string) {
-  // TODO
+async function onMenuClicked(value: number | string) {
+  switch (value) {
+    case 1:
+      try {
+        const res = await $fetch<ApiResultCode>(`/api/pcloud/folders/${selectedId.value}`, { method: 'delete' })
+        if (res.result === 0)
+          refresh()
+      }
+      catch (error) {
+        console.error(error)
+      }
+  }
 }
 </script>
 
