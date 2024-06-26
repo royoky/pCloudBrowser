@@ -3,10 +3,9 @@ import type {
   PCloudCreateFolderMetadata,
 } from '~/models/api-return-types'
 
-export default class FolderService {
-  // GET
-  public static async listFolder(
-    folderId: number,
+export default function () {
+  async function useListFolder(
+    folderId: MaybeRefOrGetter<number>,
     params?: {
       recursive?: boolean
       showDeleted?: boolean
@@ -14,12 +13,12 @@ export default class FolderService {
       noShares?: boolean
     },
   ) {
-    return useFetch<ListFolderData>(`/api/pcloud/folders/${folderId}`, {
+    return useFetch<ListFolderData>(() => `/api/pcloud/folders/${toValue(folderId)}`, {
       params,
     })
   }
 
-  public static async create({
+  async function useCreateFolder({
     parentFolderId,
     name,
   }: {
@@ -39,5 +38,10 @@ export default class FolderService {
         name,
       },
     })
+  }
+
+  return {
+    useListFolder,
+    useCreateFolder,
   }
 }

@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { storeToRefs } from 'pinia'
-import type { OAuthToken } from '~/models/api-return-types'
-import AuthService from '~/services/auth.service'
-import { useAuth } from '~/store/auth'
+import { storeToRefs } from 'pinia';
+import type { OAuthToken } from '~/models/api-return-types';
+import AuthService from '~/services/auth.service';
+import { useAuth } from '~/store/auth';
 
 const route = useRoute()
 const router = useRouter()
 const { authenticated, loading } = storeToRefs(useAuth())
 const { code, hostname }: Record<string, any> = route.query
+
+const hostnameCookie = useCookie('hostname')
+hostnameCookie.value = hostname
 
 const displayedText = ref<string>('Logging to pCloud ...')
 
@@ -21,15 +24,10 @@ watchEffect(() => {
 onMounted(async () => {
   try {
     loading.value = true
-    const oAuthData: OAuthToken = await AuthService.getTokenFromCode(
-      code,
-      hostname,
-    )
+    const oAuthData: OAuthToken = await AuthService.getTokenFromCode(code)
     if (oAuthData?.access_token) {
       const token = useCookie('token')
-      const hostnameCookie = useCookie('hostname')
       token.value = oAuthData.access_token
-      hostnameCookie.value = hostname
       authenticated.value = true
     }
     else {
@@ -39,11 +37,14 @@ onMounted(async () => {
   catch (err) {
     console.error(err)
   }
+  finally {
+    loading.value = false
+  }
 })
 </script>
 
 <template>
-  <div class="oauth">
+  <div class="d- justify-center align-center">
     {{ displayedText }}
   </div>
 </template>

@@ -47,15 +47,13 @@ export interface PCloudFile extends PCloudCommonMetadata {
   size: number
 }
 
-export class UserInfo {
-  constructor(
-    public email: string,
-    public emailverified: boolean,
-    public registered: DateTime,
-    public premium: boolean,
-    public premiumexpires: DateTime,
-    public quota: number,
-    public usedquota: number,
-    public language: string,
-  ) {}
+export interface UserInfo {
+  email: string
+  emailverified: boolean
+  registered: DateTime
+  premium: boolean
+  premiumexpires: DateTime
+  quota: number
+  usedquota: number
+  language: string
 }
