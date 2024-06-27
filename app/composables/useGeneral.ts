@@ -1,7 +1,11 @@
 import type { UserInfo } from '~/models/api-return-types'
 
-export default class GeneralService {
-  public static async getUserInfo() {
+export default function () {
+  function useUserInfo() {
     return useFetch<UserInfo>('/api/pcloud/general/userInfo')
+  }
+
+  return {
+    useUserInfo,
   }
 }

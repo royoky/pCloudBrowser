@@ -3,7 +3,10 @@ export default defineEventHandler((event) => {
   const hostname = getCookie(event, 'hostname')
 
   if (event.path.includes('/api/')) {
-    if (!token) {
+    if (event.path.includes('/auth')) {
+      event.context.auth = { hostname }
+    }
+    else if (!token) {
       throw createError({
         statusCode: 403,
         statusMessage: 'User is not logged in',

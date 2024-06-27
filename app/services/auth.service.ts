@@ -1,12 +1,12 @@
 import type { OAuthToken } from '~/models/api-return-types'
 
 export function authService() {
-  const config = useRuntimeConfig()
-  const clientId = config.public.appClientId
+  const { public: env } = useRuntimeConfig()
+  const clientId = env.appClientId
 
   function getAuthOptions() {
-    const authUrl = 'https://my.pcloud.com/oauth2/authorize'
-    const redirectUri = config.public.redirectUri
+    const authUrl = env.pcloudAuthUrl
+    const redirectUri = env.redirectUri
 
     return {
       authUrl,
@@ -20,24 +20,8 @@ export function authService() {
 
   async function getTokenFromCode(
     code: string,
-    hostname: string,
   ): Promise<OAuthToken> {
-    const clientSecret = config.public.appClientSecret
-
-    const oAuthToken = await $fetch<OAuthToken>(
-      `https://${hostname}/oauth2_token`,
-      {
-        params: {
-          client_id: clientId,
-          client_secret: clientSecret,
-          code,
-        },
-      },
-    )
-    if (oAuthToken.result === 0)
-      return oAuthToken
-    else
-      throw new Error(`cannot get token :: ${oAuthToken.result}`)
+    return $fetch('/api/pcloud/auth/token', { params: { code } })
   }
 
   return {

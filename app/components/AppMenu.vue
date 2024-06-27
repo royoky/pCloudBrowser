@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import prettyBytes from 'pretty-bytes'
-import GeneralService from '~/services/general.service'
-import { useAuth } from '~/store/auth'
+import prettyBytes from 'pretty-bytes';
+import { useAuth } from '~/store/auth';
 
-const { data: userInfo, refresh } = await GeneralService.getUserInfo()
+const { useUserInfo } = useGeneral()
+
+const { data: userInfo, refresh } = await useUserInfo()
 const { authenticated } = useAuth()
 
 const items = [

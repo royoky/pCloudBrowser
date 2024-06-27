@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import type {
-  ListFolderData,
-  PCloudFile,
-  PCloudFolder,
-} from '~/models/api-return-types'
+PCloudFile,
+PCloudFolder,
+} from '~/models/api-return-types';
+
+const { useListFolder } = useFolder()
 
 const folderId = ref<number>(0)
 
 const breadcrumbsItems = ref<string[]>(['All Files'])
 
-const url = computed((): string => `/api/pcloud/folders/${folderId.value}`)
 const params = { recursive: true }
 
-const { data } = await useFetch<ListFolderData>(url, { params })
+const { data } = await useListFolder(folderId, params)
 
 const folders = computed(
   (): PCloudFolder[] =>

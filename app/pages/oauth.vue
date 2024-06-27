@@ -10,6 +10,8 @@ const { authenticated, loading } = storeToRefs(useAuth())
 const { code, hostname }: Record<string, any> = route.query
 
 const { getTokenFromCode } = authService()
+const hostnameCookie = useCookie('hostname')
+hostnameCookie.value = hostname
 
 const displayedText = ref<string>('Logging to pCloud ...')
 
@@ -25,13 +27,10 @@ onMounted(async () => {
     loading.value = true
     const oAuthData: OAuthToken = await getTokenFromCode(
       code,
-      hostname,
     )
     if (oAuthData?.access_token) {
       const token = useCookie('token')
-      const hostnameCookie = useCookie('hostname')
       token.value = oAuthData.access_token
-      hostnameCookie.value = hostname
       authenticated.value = true
     }
     else {
@@ -41,6 +40,9 @@ onMounted(async () => {
   catch (err) {
     console.error(err)
     displayedText.value = 'Une erreur est survenue'
+  }
+  finally {
+    loading.value = false
   }
 })
 </script>

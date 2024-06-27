@@ -1,6 +1,8 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
+
   devtools: { enabled: true },
+
   modules: [
     '@vueuse/nuxt',
     'nuxt-module-eslint-config',
@@ -23,18 +25,19 @@ export default defineNuxtConfig({
       },
     ],
   ],
-  nitro: {
-    experimental: {
-      openAPI: true,
+
+  runtimeConfig: {
+    appClientSecret: '',
+    public: {
+      pcloudAuthUrl: 'https://my.pcloud.com/oauth2/authorize',
+      appClientId: '',
+      redirectUri: '',
     },
   },
 
-  runtimeConfig: {
-    public: {
-      pcloudAuthUrl: '',
-      redirectUri: '',
-      appClientId: '',
-      appClientSecret: '',
+  nitro: {
+    experimental: {
+      openAPI: true,
     },
   },
 })
