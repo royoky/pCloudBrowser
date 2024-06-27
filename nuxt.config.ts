@@ -22,6 +22,14 @@ export default defineNuxtConfig({
       },
     ],
   ],
+  runtimeConfig: {
+    appClientSecret: '',
+    public: {
+      pcloudAuthUrl: '',
+      appClientId: '',
+      redirectUri: '',
+    },
+  },
   nitro: {
     experimental: {
       openAPI: true,
