@@ -1,4 +1,6 @@
 // https://v3.nuxtjs.org/api/configuration/nuxt.config
+import process from 'node:process'
+
 export default defineNuxtConfig({
   modules: [
     '@vueuse/nuxt',
@@ -23,11 +25,11 @@ export default defineNuxtConfig({
     ],
   ],
   runtimeConfig: {
-    appClientSecret: '',
+    appClientSecret: process.env.NUXT_APP_CLIENT_SECRET,
     public: {
-      pcloudAuthUrl: '',
-      appClientId: '',
-      redirectUri: '',
+      pcloudAuthUrl: process.env.NUXT_PUBLIC_PCLOUD_AUTH_URL,
+      redirectUri: process.env.NUXT_PUBLIC_REDIRECT_URI,
+      appClientId: process.env.NUXT_PUBLIC_APP_CLIENT_ID,
     },
   },
   nitro: {
