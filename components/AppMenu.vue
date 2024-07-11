@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import prettyBytes from 'pretty-bytes';
-import { useAuth } from '~/store/auth';
+import prettyBytes from 'pretty-bytes'
+import { useAuth } from '~/store/auth'
 
 const { useUserInfo } = useGeneral()
 

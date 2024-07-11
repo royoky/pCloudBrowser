@@ -3,8 +3,8 @@ import process from 'node:process'
 
 export default defineNuxtConfig({
   modules: [
+    '@nuxt/eslint',
     '@vueuse/nuxt',
-    'nuxt-module-eslint-config',
     [
       '@pinia/nuxt',
       {
@@ -24,6 +24,13 @@ export default defineNuxtConfig({
       },
     ],
   ],
+
+  eslint: {
+    config: {
+      standalone: false,
+    },
+  },
+
   runtimeConfig: {
     appClientSecret: process.env.NUXT_APP_CLIENT_SECRET,
     public: {
@@ -32,9 +39,12 @@ export default defineNuxtConfig({
       appClientId: process.env.NUXT_PUBLIC_APP_CLIENT_ID,
     },
   },
+
   nitro: {
     experimental: {
       openAPI: true,
     },
   },
+
+  compatibilityDate: '2024-07-11',
 })

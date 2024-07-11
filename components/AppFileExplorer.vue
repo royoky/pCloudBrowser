@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type {
-PCloudFile,
-PCloudFolder,
-} from '~/models/api-return-types';
+  PCloudFile,
+  PCloudFolder,
+} from '~/models/api-return-types'
 
 const { useListFolder } = useFolder()
 

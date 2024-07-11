@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { storeToRefs } from 'pinia';
-import type { OAuthToken } from '~/models/api-return-types';
-import AuthService from '~/services/auth.service';
-import { useAuth } from '~/store/auth';
+import { storeToRefs } from 'pinia'
+import type { OAuthToken } from '~/models/api-return-types'
+import AuthService from '~/services/auth.service'
+import { useAuth } from '~/store/auth'
 
 const route = useRoute()
 const router = useRouter()
