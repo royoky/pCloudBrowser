@@ -64,7 +64,7 @@ function onParentFolderClick() {
   </div>
 </template>
 
-<style lang="scss">
+<style>
 .app-file-explorer {
   width: 25rem;
 }
