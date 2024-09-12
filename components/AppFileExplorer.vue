@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import AppContextMenu from './AppContextMenu.vue'
 import type {
+  ApiResultCode,
   ListFolderData,
   PCloudFile,
   PCloudFolder,
@@ -12,7 +14,7 @@ const breadcrumbsItems = ref<string[]>(['All Files'])
 const url = computed((): string => `/api/pcloud/folders/${folderId.value}`)
 const params = { recursive: true }
 
-const { data } = await useFetch<ListFolderData>(url, { params })
+const { data, refresh } = await useFetch<ListFolderData>(url, { params })
 
 const folders = computed(
   (): PCloudFolder[] =>
@@ -49,18 +51,69 @@ function onParentFolderClick() {
     breadcrumbsItems.value.pop()
   }
 }
+
+const contextMenu = ref<InstanceType<typeof AppContextMenu>>()
+const isContextMenuOpen = ref<boolean>(false)
+
+const folderMenuItems = [
+  { value: 1, text: 'Delete folder' },
+  { value: 2, text: 'Copy folder' },
+  { value: 3, text: 'Move folder' },
+]
+
+const fileMenuItems = [
+  { value: 4, text: 'Delete file' },
+  { value: 5, text: 'Copy file' },
+  { value: 6, text: 'Move file' },
+]
+
+const menuItems = ref<{ text: string | number, value: number | string }[]>([])
+
+const selectedId = ref<number>()
+
+function onContextMenu(id: number, isFolder: boolean) {
+  isContextMenuOpen.value = false
+  selectedId.value = id
+  nextTick(() => {
+    menuItems.value = isFolder ? folderMenuItems : fileMenuItems
+    contextMenu.value?.show()
+  })
+}
+
+async function onMenuClicked(value: number | string) {
+  switch (value) {
+    case 1:
+      try {
+        const res = await $fetch<ApiResultCode>(`/api/pcloud/folders/${selectedId.value}`, { method: 'delete' })
+        if (res.result === 0)
+          refresh()
+      }
+      catch (error) {
+        console.error(error)
+      }
+  }
+}
 </script>
 
 <template>
   <div class="app-file-explorer d-flex flex-column">
     <AppBreadcrumbs :items="breadcrumbsItems" />
-    <AppItemList
-      :folders="folders"
-      :files="files"
-      :is-top-level="isTopLEvel"
-      @on-folder-click="onFolderClick"
-      @on-parent-folder-click="onParentFolderClick"
-    />
+    <AppContextMenu
+      ref="contextMenu"
+      v-model="isContextMenuOpen"
+      :menu-items
+      @on-menu-clicked="onMenuClicked"
+    >
+      <AppItemList
+        :folders="folders"
+        :files="files"
+        :is-top-level="isTopLEvel"
+        @on-folder-click="onFolderClick"
+        @on-parent-folder-click="onParentFolderClick"
+        @on-file-context-menu="onContextMenu"
+        @on-context-menu="(folderId, isFolder) => onContextMenu(folderId, isFolder)"
+      />
+    </AppContextMenu>
   </div>
 </template>
 
