@@ -6,7 +6,6 @@
 
   // Auto fix
   "editor.codeActionsOnSave": [
-    "source.organizeImports",
     "source.fixAll.eslint"
   ],
 

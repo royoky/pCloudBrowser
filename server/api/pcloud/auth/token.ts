@@ -8,14 +8,14 @@ export default defineEventHandler(async (event: H3Event) => {
   const config = useRuntimeConfig()
 
   const oAuthToken = await $fetch<OAuthToken>(
-        `https://${baseUrl}/oauth2_token`,
-        {
-          params: {
-            client_id: config.public.appClientId,
-            client_secret: config.appClientSecret,
-            code,
-          },
-        },
+    `https://${baseUrl}/oauth2_token`,
+    {
+      params: {
+        client_id: config.public.appClientId,
+        client_secret: config.appClientSecret,
+        code,
+      },
+    },
   )
   if (oAuthToken.result === 0)
     return oAuthToken
