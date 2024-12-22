@@ -5,7 +5,8 @@ import { useAuth } from '~/store/auth'
 const { useUserInfo } = useGeneral()
 
 const { data: userInfo, refresh } = await useUserInfo()
-const { authenticated } = useAuth()
+const { authenticated } = storeToRefs(useAuth())
+const { logout } = (useAuth())
 
 const items = [
   { text: 'My Files', icon: 'mdi-folder', to: '/' },
@@ -27,14 +28,39 @@ const quota = computed((): string => {
   return ''
 })
 
+const rail = useState<boolean>('rail', () => false)
+const isDrawerOpen = useState<boolean>('drawer', () => true)
+
+const isExpanded = ref<boolean>(!rail.value)
+
+const router = useRouter()
+
+async function logUserOut() {
+  logout()
+  router.push('/')
+}
+
+function handleRail(isRail: boolean) {
+  setTimeout(() => {
+    isExpanded.value = !isRail
+  }, 250)
+}
+
 watchEffect(async () => {
-  if (authenticated)
+  if (authenticated.value)
     refresh()
 })
 </script>
 
 <template>
-  <VNavigationDrawer v-if="authenticated" rail permanent expand-on-hover>
+  <VNavigationDrawer
+    v-if="authenticated"
+    v-model="isDrawerOpen"
+    :rail
+    permanent
+    expand-on-hover
+    @update:rail="handleRail"
+  >
     <VList>
       <VListItem :title="email" :subtitle="quota">
         <template #prepend>
@@ -62,5 +88,16 @@ watchEffect(async () => {
         <VListItemTitle>{{ item.text }}</VListItemTitle>
       </VListItem>
     </VList>
+    <VDivider />
+    <div class="pa-2">
+      <v-btn block @click="logUserOut">
+        <VIcon icon="mdi-logout" :start="!rail || isExpanded" />
+        <Transition>
+          <p v-if="!rail || isExpanded">
+            Logout
+          </p>
+        </Transition>
+      </v-btn>
+    </div>
   </VNavigationDrawer>
 </template>

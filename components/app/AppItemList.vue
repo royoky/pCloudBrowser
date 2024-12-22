@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import AppFile from './AppFile.vue'
-import AppFolder from './AppFolder.vue'
 import type { PCloudFile, PCloudFolder } from '~/models/api-return-types'
 
 defineProps<{
@@ -11,6 +9,7 @@ defineProps<{
 
 defineEmits<{
   (e: 'onFolderClick', id: number): void
+  (e: 'onFileClick', id: number): void
   (e: 'onParentFolderClick'): void
 }>()
 
@@ -51,6 +50,6 @@ defineEmits<{
     <VListSubheader v-if="files?.length" inset>
       Files
     </VListSubheader>
-    <AppFile v-for="file in files" :key="file.id" :file="file" />
+    <AppFile v-for="file in files" :key="file.id" :file="file" @click="$emit('onFileClick', file.id)" />
   </VList>
 </template>
