@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { storeToRefs } from 'pinia'
 import type { OAuthToken } from '~/models/api-return-types'
-import AuthService from '~/services/auth.service'
+import { storeToRefs } from 'pinia'
+import { authService } from '~/services/auth.service'
 import { useAuth } from '~/store/auth'
 
 const route = useRoute()
 const router = useRouter()
 const { authenticated, loading } = storeToRefs(useAuth())
 const { code, hostname }: Record<string, any> = route.query
+
+const { getTokenFromCode } = authService()
 
 const displayedText = ref<string>('Logging to pCloud ...')
 
@@ -21,7 +23,7 @@ watchEffect(() => {
 onMounted(async () => {
   try {
     loading.value = true
-    const oAuthData: OAuthToken = await AuthService.getTokenFromCode(
+    const oAuthData: OAuthToken = await getTokenFromCode(
       code,
       hostname,
     )
@@ -38,12 +40,13 @@ onMounted(async () => {
   }
   catch (err) {
     console.error(err)
+    displayedText.value = 'Une erreur est survenue'
   }
 })
 </script>
 
 <template>
-  <div class="oauth">
+  <div class="d-flex justify-center align-center w-100 h-100">
     {{ displayedText }}
   </div>
 </template>
