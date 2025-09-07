@@ -1,5 +1,6 @@
-// https://v3.nuxtjs.org/api/configuration/nuxt.config
 export default defineNuxtConfig({
+  compatibilityDate: '2025-07-15',
+  devtools: { enabled: true },
   modules: [
     '@vueuse/nuxt',
     'nuxt-module-eslint-config',
@@ -25,6 +26,15 @@ export default defineNuxtConfig({
   nitro: {
     experimental: {
       openAPI: true,
+    },
+  },
+
+  runtimeConfig: {
+    public: {
+      pcloudAuthUrl: '',
+      redirectUri: '',
+      appClientId: '',
+      appClientSecret: '',
     },
   },
 })

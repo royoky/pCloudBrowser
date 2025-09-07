@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import type { PCloudFile, PCloudFolder } from '~/models/api-return-types'
 import AppFile from './AppFile.vue'
 import AppFolder from './AppFolder.vue'
-import type { PCloudFile, PCloudFolder } from '~/models/api-return-types'
 
 defineProps<{
   folders: PCloudFolder[] | null
