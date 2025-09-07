@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { useTheme } from 'vuetify'
-
 useHead({
   title: 'pCloud Browser',
   link: [
@@ -11,32 +9,17 @@ useHead({
     },
   ],
 })
-
-const theme = useTheme()
-
-function toggleTheme() {
-  theme.global.name.value = theme.global.current.value.dark ? 'light' : 'dark'
-}
 </script>
 
 <template>
   <div>
     <VApp>
       <VLayout>
+        <AppHeader />
         <AppMenu />
-        <VAppBar name="App Bar">
-          <VAppBarTitle>
-            <div class="app-bar-title" href="/">
-              pCloud Browser
-            </div>
-          </VAppBarTitle>
-          <VBtn icon @click="toggleTheme">
-            <VIcon>mdi-theme-light-dark</VIcon>
-          </VBtn>
-        </VAppBar>
-        <VBottomNavigation class="align-center">
-          <div>FOOTER</div>
-        </VBottomNavigation>
+        <VFooter app class="d-flex justify-center align-center">
+          <div>App Footer</div>
+        </VFooter>
         <VMain>
           <NuxtPage />
         </VMain>

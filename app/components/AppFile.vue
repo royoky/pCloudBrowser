@@ -10,12 +10,11 @@ defineProps<{
   <VListItem
     :title="file.name"
     :subtitle="file.modified"
-    @click="() => console.log('clicked')"
   >
     <template #prepend>
-      <VAvatar color="yellow">
-        <VIcon color="white">
-          {{ `mdi-file-${file.icon}` }}
+      <VAvatar color="blue">
+        <VIcon>
+          {{ file.icon === 'archive' ? 'mdi-archive' : `mdi-file-${file.icon}` }}
         </VIcon>
       </VAvatar>
     </template>

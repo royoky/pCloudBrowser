@@ -1,6 +1,6 @@
 # pCloud Browser
 
-The aim of this project if to create a modern interface to browse files located on a pCloud account.
+The aim of this project is to provide a clean and modern interface to browse files located on a pCloud account.
 
 ## Setup
 

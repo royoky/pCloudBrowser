@@ -4,8 +4,8 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
 
   modules: [
+    '@nuxt/eslint',
     '@vueuse/nuxt',
-    'nuxt-module-eslint-config',
     [
       '@pinia/nuxt',
       {
@@ -32,6 +32,12 @@ export default defineNuxtConfig({
       pcloudAuthUrl: 'https://my.pcloud.com/oauth2/authorize',
       appClientId: '',
       redirectUri: '',
+    },
+  },
+
+  eslint: {
+    config: {
+      standalone: false,
     },
   },
 
