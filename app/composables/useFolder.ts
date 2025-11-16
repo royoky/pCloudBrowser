@@ -29,7 +29,7 @@ export default function () {
       result: number
       metadata: PCloudCreateFolderMetadata
       error?: string
-    }>(`$api/pcloud/folders`, {
+    }>('$api/pcloud/folders', {
       params: {
         folderid: parentFolderId,
       },

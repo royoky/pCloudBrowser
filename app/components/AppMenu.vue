@@ -1,12 +1,7 @@
 <script setup lang="ts">
 import prettyBytes from 'pretty-bytes'
-import { useAuth } from '~/store/auth'
 
-const { useUserInfo } = useGeneral()
-
-const { data: userInfo, refresh } = await useUserInfo()
-const { authenticated } = storeToRefs(useAuth())
-const { logout } = (useAuth())
+const { loggedIn, clear, user } = useUserSession()
 
 const items = [
   { text: 'My Files', icon: 'mdi-folder', to: '/' },
@@ -18,11 +13,11 @@ const items = [
   { text: 'Backups', icon: 'mdi-cloud-upload' },
 ]
 
-const email = computed(() => userInfo.value?.email ?? '')
+const email = computed(() => user.value?.email ?? '')
 const quota = computed((): string => {
-  if (userInfo.value) {
-    return `${prettyBytes(userInfo.value.usedquota)} out of ${prettyBytes(
-      userInfo.value.quota,
+  if (user.value?.usedquota && user.value.quota) {
+    return `${prettyBytes(user.value.usedquota)} out of ${prettyBytes(
+      user.value.quota,
     )} used`
   }
   return ''
@@ -33,28 +28,16 @@ const isDrawerOpen = useState<boolean>('drawer', () => true)
 
 const isExpanded = ref<boolean>(!rail.value)
 
-const router = useRouter()
-
-async function logUserOut() {
-  logout()
-  router.push('/')
-}
-
 function handleRail(isRail: boolean) {
   setTimeout(() => {
     isExpanded.value = !isRail
   }, 250)
 }
-
-watchEffect(async () => {
-  if (authenticated.value)
-    refresh()
-})
 </script>
 
 <template>
   <VNavigationDrawer
-    v-if="authenticated"
+    v-if="loggedIn"
     v-model="isDrawerOpen"
     :rail
     permanent
@@ -90,7 +73,7 @@ watchEffect(async () => {
     </VList>
     <VDivider />
     <div class="pa-2">
-      <VBtn block @click="logUserOut">
+      <VBtn block @click="clear">
         <VIcon icon="mdi-logout" :start="!rail || isExpanded" />
         <Transition>
           <p v-if="!rail || isExpanded">

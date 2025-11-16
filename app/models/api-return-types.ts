@@ -47,7 +47,7 @@ export interface PCloudFile extends PCloudCommonMetadata {
   size: number
 }
 
-export interface UserInfo {
+export interface UserInfo extends ApiResultCode {
   email: string
   emailverified: boolean
   registered: DateTime
