@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { loggedIn, clear } = useUserSession()
+const { loggedIn, clear, openInPopup } = useUserSession()
 </script>
 
 <template>
@@ -14,8 +14,8 @@ const { loggedIn, clear } = useUserSession()
       <AppFileExplorer />
     </div>
 
-    <VBtn v-else>
-      <a href="/auth/pcloud">Log In with pCloud</a>
+    <VBtn v-else class="text-none" append-icon="mdi-login" @click="openInPopup('/auth/pcloud')">
+      <span>Login</span>
     </VBtn>
   </div>
 </template>
