@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { loggedIn, clear, openInPopup } = useUserSession()
+const { loggedIn } = useUserSession()
 </script>
 
 <template>
@@ -8,13 +8,10 @@ const { loggedIn, clear, openInPopup } = useUserSession()
     :class="[loggedIn ? 'align-top' : 'align-center']"
   >
     <div v-if="loggedIn" class="d-flex flex-column align-center">
-      <VBtn class="align-self-end my-6" @click="clear">
-        Logout
-      </VBtn>
       <AppFileExplorer />
     </div>
 
-    <VBtn v-else class="text-none" append-icon="mdi-login" @click="openInPopup('/auth/pcloud')">
+    <VBtn v-else class="text-none" append-icon="mdi-login" href="/auth/pcloud">
       <span>Login</span>
     </VBtn>
   </div>
