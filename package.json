@@ -21,13 +21,13 @@
     "nuxt-auth-utils": "0.5.25",
     "pretty-bytes": "^7.1.0",
     "vue": "latest",
-    "zod": "^4.1.12"
+    "zod": "^4.1.13"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^6.2.0",
-    "@nuxt/eslint": "^1.10.0",
+    "@antfu/eslint-config": "^6.4.2",
+    "@nuxt/eslint": "^1.11.0",
     "@types/luxon": "^3.7.1",
-    "@vueuse/nuxt": "^14.0.0",
+    "@vueuse/nuxt": "^14.1.0",
     "eslint": "^9.39.1",
     "vuetify-nuxt-module": "^0.18.8"
   }
