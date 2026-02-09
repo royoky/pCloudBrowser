@@ -31,7 +31,6 @@ export default defineNuxtConfig({
     public: {
       pcloudAuthUrl: 'https://my.pcloud.com/oauth2/authorize',
       appClientId: '',
-      redirectUri: '',
     },
   },
 

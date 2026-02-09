@@ -7,5 +7,3 @@ defineProps<{
 <template>
   <VBreadcrumbs :items="items" />
 </template>
-
-<style></style>

@@ -90,14 +90,14 @@ watchEffect(async () => {
     </VList>
     <VDivider />
     <div class="pa-2">
-      <v-btn block @click="logUserOut">
+      <VBtn block @click="logUserOut">
         <VIcon icon="mdi-logout" :start="!rail || isExpanded" />
         <Transition>
           <p v-if="!rail || isExpanded">
             Logout
           </p>
         </Transition>
-      </v-btn>
+      </VBtn>
     </div>
   </VNavigationDrawer>
 </template>

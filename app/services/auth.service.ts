@@ -6,7 +6,7 @@ export function authService() {
 
   function getAuthOptions() {
     const authUrl = env.pcloudAuthUrl
-    const redirectUri = env.redirectUri
+    const redirectUri = `${window.location.origin}/callback`
 
     return {
       authUrl,
