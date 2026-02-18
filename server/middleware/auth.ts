@@ -1,6 +1,7 @@
-export default defineEventHandler((event) => {
-  const token = getCookie(event, 'token')
-  const hostname = getCookie(event, 'hostname')
+export default defineEventHandler(async (event) => {
+  const session = await getUserSession(event)
+  const token = session.pcloudAccessToken
+  const hostname = session.pcloudApiHostname
 
   if (event.path.includes('/api/')) {
     if (event.path.includes('/auth')) {

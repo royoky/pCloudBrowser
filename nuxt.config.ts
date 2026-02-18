@@ -6,31 +6,23 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
     '@vueuse/nuxt',
-    [
-      '@pinia/nuxt',
-      {
-        autoImports: ['defineStore'],
-      },
-    ],
-    [
-      'vuetify-nuxt-module',
-      {
-        moduleOptions: {
-          prefersColorScheme: true,
-          prefersColorSchemeOptions: {
-            cookieName: 'vuetify-theme',
-          },
+    ['vuetify-nuxt-module', {
+      moduleOptions: {
+        prefersColorScheme: true,
+        prefersColorSchemeOptions: {
+          cookieName: 'vuetify-theme',
         },
-        vuetifyOptions: './vuetify.config.ts',
       },
-    ],
+      vuetifyOptions: './vuetify.config.ts',
+    }],
+    'nuxt-auth-utils',
   ],
 
   runtimeConfig: {
     appClientSecret: '',
+    appClientId: '',
     public: {
-      pcloudAuthUrl: 'https://my.pcloud.com/oauth2/authorize',
-      appClientId: '',
+      baseUrl: '',
     },
   },
 
