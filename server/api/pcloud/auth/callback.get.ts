@@ -1,4 +1,11 @@
-import type { UserInfo } from '~/models/api-return-types'
+import type {
+  PCloudTokenResponse,
+  PCloudUserInfo,
+} from '~~/server/models/pcloud-api'
+import {
+  getPCloudErrorMessage,
+  isPCloudSuccess,
+} from '~~/server/models/pcloud-api'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
@@ -16,38 +23,52 @@ export default defineEventHandler(async (event) => {
 
   try {
     const tokenUrl = `https://${hostname}/oauth2_token`
-    const tokenResponse = await $fetch<TokenResponse>(tokenUrl, {
+    const tokenResponse = await $fetch<PCloudTokenResponse>(tokenUrl, {
       method: 'POST',
       params: {
-        client_id: config.pcloudClientId,
-        client_secret: config.pcloudClientSecret,
+        client_id: config.appClientId,
+        client_secret: config.appClientSecret,
         code,
       },
     })
 
+    if (!isPCloudSuccess(tokenResponse)) {
+      const errorMessage
+        = getPCloudErrorMessage(tokenResponse)
+          || 'Unknown pCloud token exchange error'
+      throw new Error(`pCloud token exchange failed: ${errorMessage}`)
+    }
+
     const accessToken = tokenResponse.access_token
     if (!accessToken) {
-      throw new Error('Failed to get access token')
+      throw new Error('Failed to get access token from successful response')
     }
 
     const userUrl = `https://${hostname}/userinfo`
-    const userInfo = await $fetch<UserInfo>(userUrl, {
+    const pcloudUserInfo = await $fetch<PCloudUserInfo>(userUrl, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
     })
 
+    if (!isPCloudSuccess(pcloudUserInfo)) {
+      const errorMessage
+        = getPCloudErrorMessage(pcloudUserInfo)
+          || 'Unknown error fetching user info'
+      throw new Error(`Failed to fetch user info: ${errorMessage}`)
+    }
+
     await setUserSession(event, {
       user: {
         pcloudId: tokenResponse.uid,
-        email: userInfo.email,
-        emailVerified: userInfo.emailverified,
-        registered: userInfo.registered,
-        premium: userInfo.premium,
-        premiumexpires: userInfo.premiumexpires,
-        quota: userInfo.quota,
-        usedquota: userInfo.usedquota,
-        language: userInfo.language,
+        email: pcloudUserInfo.email,
+        emailVerified: pcloudUserInfo.emailverified,
+        registered: pcloudUserInfo.registered,
+        premium: pcloudUserInfo.premium,
+        premiumexpires: pcloudUserInfo.premiumexpires,
+        quota: pcloudUserInfo.quota,
+        usedquota: pcloudUserInfo.usedquota,
+        language: pcloudUserInfo.language,
       },
       pcloudAccessToken: accessToken,
       pcloudApiHostname: hostname,
@@ -56,17 +77,11 @@ export default defineEventHandler(async (event) => {
     return sendRedirect(event, '/')
   }
   catch (error) {
-    console.error('Error in pCloud auth callback:', error)
+    const typedError = error as Error
+    console.error('Error in pCloud auth callback:', typedError)
     throw createError({
       statusCode: 500,
-      message: 'Internal Server Error during pCloud auth',
+      message: typedError.message ?? 'Internal Server Error during pCloud auth',
     })
   }
 })
-
-interface TokenResponse {
-  result: number
-  access_token: string
-  token_type: string
-  uid: number
-}

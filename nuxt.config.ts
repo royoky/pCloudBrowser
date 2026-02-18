@@ -19,8 +19,8 @@ export default defineNuxtConfig({
   ],
 
   runtimeConfig: {
-    pcloudClientSecret: '',
-    pcloudClientId: '',
+    appClientSecret: '',
+    appClientId: '',
     public: {
       baseUrl: '',
     },
