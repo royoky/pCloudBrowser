@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import type { PCloudFile } from '~/models/api-return-types'
+import type { CloudFile } from '~~/shared/models/cloud-item'
 
 defineProps<{
-  file: PCloudFile
+  file: CloudFile
 }>()
 </script>
 
 <template>
   <VListItem
     :title="file.name"
-    :subtitle="file.modified"
+    :subtitle="file.modifiedAt"
   >
     <template #prepend>
       <VAvatar color="blue">
         <VIcon>
-          {{ file.icon === 'archive' ? 'mdi-archive' : `mdi-file-${file.icon}` }}
+          {{ file.category === 'archive' ? 'mdi-archive' : `mdi-file-${file.category}` }}
         </VIcon>
       </VAvatar>
     </template>

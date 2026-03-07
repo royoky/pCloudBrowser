@@ -1,11 +1,8 @@
-import type {
-  ListFolderData,
-  PCloudCreateFolderMetadata,
-} from '~/models/api-return-types'
+import type { CloudFolder } from '~~/shared/models/cloud-item'
 
 export default function () {
   async function useListFolder(
-    folderId: MaybeRefOrGetter<number>,
+    folderId: MaybeRefOrGetter<string>,
     params?: {
       recursive?: boolean
       showDeleted?: boolean
@@ -13,7 +10,7 @@ export default function () {
       noShares?: boolean
     },
   ) {
-    return useFetch<ListFolderData>(() => `/api/pcloud/folders/${toValue(folderId)}`, {
+    return useFetch<CloudFolder>(() => `/api/pcloud/folders/${toValue(folderId)}`, {
       params,
     })
   }
@@ -25,11 +22,7 @@ export default function () {
     parentFolderId: number
     name: string
   }) {
-    return useFetch<{
-      result: number
-      metadata: PCloudCreateFolderMetadata
-      error?: string
-    }>('$api/pcloud/folders', {
+    return useFetch('/api/pcloud/folders', {
       params: {
         folderid: parentFolderId,
       },

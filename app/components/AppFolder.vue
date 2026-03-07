@@ -1,19 +1,19 @@
 <script setup lang="ts">
-import type { PCloudFolder } from '~/models/api-return-types'
+import type { MiniCloudFolder } from '~~/shared/models/cloud-item'
 
 defineProps<{
-  folder: PCloudFolder
+  folder: MiniCloudFolder
 }>()
 
 defineEmits<{
-  onFolderClick: [id: number]
+  onFolderClick: [id: string]
 }>()
 </script>
 
 <template>
   <VListItem
     :title="folder.name"
-    :subtitle="folder.modified"
+    :subtitle="folder.modifiedAt"
     @click="$emit('onFolderClick', folder.id)"
   >
     <template #prepend>

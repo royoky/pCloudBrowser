@@ -1,12 +1,9 @@
 <script setup lang="ts">
-import type {
-  PCloudFile,
-  PCloudFolder,
-} from '~/models/api-return-types'
+import type { CloudFile, MiniCloudFolder } from '~~/shared/models/cloud-item'
 
 const { useListFolder } = useFolder()
 
-const folderId = ref<number>(0)
+const folderId = ref<string>('0')
 
 const breadcrumbsItems = ref<string[]>(['All Files'])
 
@@ -14,37 +11,32 @@ const params = { recursive: true }
 
 const { data } = await useListFolder(folderId, params)
 
-const folders = computed(
-  (): PCloudFolder[] =>
-    data.value?.metadata?.contents?.filter(
-      (elt: PCloudFile | PCloudFolder) => elt.isfolder,
-    ) ?? [],
+const folders = computed<MiniCloudFolder[]>(
+  () => data.value?.entries.filter((item): item is MiniCloudFolder => item.type === 'folder') ?? [],
 )
-const files = computed(
-  (): PCloudFile[] =>
-    data.value?.metadata?.contents?.filter(
-      (elt: PCloudFile | PCloudFolder) => !elt.isfolder,
-    ) ?? [],
+const files = computed<CloudFile[]>(
+  () => data.value?.entries?.filter((item): item is CloudFile => item.type === 'file') ?? [],
 )
 
-const parentFolderId = computed(
-  (): number | null => data.value?.metadata.parentfolderid ?? null,
-)
+const parentFolderId = computed<string | null>(() => {
+  if (folderId.value === '0')
+    return null
+  const parent = data.value?.parentId
+  return parent ?? null
+})
 
 const isTopLEvel = computed((): boolean => parentFolderId.value === null)
 
-function onFolderClick(clickedId: number | null) {
+function onFolderClick(clickedId: string | null) {
   if (clickedId) {
     folderId.value = clickedId
-    const folderName = folders.value.find(
-      folder => folder.folderid === folderId.value,
-    )?.name
-    breadcrumbsItems.value.push(folderName ?? folderId.value.toString())
+    const folderName = folders.value.find(folder => folder.id === clickedId)?.name
+    breadcrumbsItems.value.push(folderName ?? clickedId)
   }
 }
 
 function onParentFolderClick() {
-  if (parentFolderId.value != null) {
+  if (parentFolderId.value) {
     folderId.value = parentFolderId.value
     breadcrumbsItems.value.pop()
   }
