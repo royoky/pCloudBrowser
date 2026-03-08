@@ -7,6 +7,7 @@ import type {
   PCloudListResponse,
   PCloudUserInfo,
 } from '~~/server/models/pcloud-api'
+
 import type {
   CloudFile,
   CloudFolder,
@@ -157,5 +158,84 @@ export function mapPCloudUserToCloudUser(pcloudUser: PCloudUserInfo): User {
     quota: pcloudUser.quota,
     usedquota: pcloudUser.usedquota,
     language: pcloudUser.language,
+  }
+}
+
+/**
+ * Maps pCloud's integer category to our agnostic FileCategory string
+ * pCloud categories: 0: uncategorized, 1: image, 2: video, 3: audio, 4: document, 5: archive
+ */
+function mapPCloudCategory(categoryId: number, mimeType: string): FileCategory {
+  switch (categoryId) {
+    case 1:
+      return 'image'
+    case 2:
+      return 'video'
+    case 3:
+      return 'audio'
+    case 4:
+      return 'document'
+    case 5:
+      return 'archive'
+    default:
+      if (
+        mimeType.includes('text/')
+        || mimeType.includes('application/json')
+        || mimeType.includes('javascript')
+      ) {
+        return 'code'
+      }
+      return 'unknown'
+  }
+}
+
+/**
+ * Extracts the file extension from the filename
+ */
+function getFileExtension(filename: string): string {
+  const lastDotIndex = filename.lastIndexOf('.')
+  if (lastDotIndex <= 0)
+    return ''
+  return filename.substring(lastDotIndex + 1).toLowerCase()
+}
+
+/**
+ * Maps a single pCloud file metadata object to the agnostic CloudFile format
+ */
+export function mapPCloudFileToCloudFile(
+  metadata: PCloudFileMetadata,
+  fallbackPath: string = '',
+): CloudFile {
+  const parentId = metadata.parentfolderid === 0 ? null : metadata.parentfolderid.toString()
+  const path = metadata.path || fallbackPath || `/${metadata.name}`
+
+  const createdAt = new Date(metadata.created).toISOString()
+  const modifiedAt = new Date(metadata.modified).toISOString()
+
+  // Determine capabilities
+  const capabilities: CloudItemCapabilities = {
+    // pCloud generates thumbs for images/videos. If thumbready is true, we can preview it.
+    canPreview: metadata.thumbready === true || [1, 2, 3].includes(metadata.category),
+    canEdit: metadata.ismine, // Assuming ownership grants edit rights
+    canDownload: true,
+    canShare: !metadata.isshared && metadata.ismine,
+    canDelete: metadata.ismine,
+  }
+
+  return {
+    id: metadata.fileid.toString(),
+    name: metadata.name,
+    type: 'file',
+    path,
+    parentId,
+    createdAt,
+    modifiedAt,
+    capabilities,
+
+    // File-specific properties
+    extension: getFileExtension(metadata.name),
+    mimeType: metadata.contenttype,
+    size: metadata.size,
+    category: mapPCloudCategory(metadata.category, metadata.contenttype),
   }
 }

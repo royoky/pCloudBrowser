@@ -42,12 +42,3 @@ export interface CloudFile extends BaseCloudItem<'file'> {
 
 export type CloudItem = CloudFile | CloudFolder
 export type EntryItem = CloudFile | MiniCloudFolder
-
-export type FileCategory
-  = | 'image'
-    | 'document'
-    | 'audio'
-    | 'video'
-    | 'archive'
-    | 'code'
-    | 'unknown'
