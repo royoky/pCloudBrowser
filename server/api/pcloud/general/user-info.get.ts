@@ -2,6 +2,7 @@ import type { H3Event } from 'h3'
 import type {
   PCloudUserInfo,
 } from '~~/server/models/pcloud-api'
+import { mapPCloudUserToCloudUser } from '~~/server/mappers/pcloud-mapper'
 import {
   getPCloudErrorMessage,
   isPCloudSuccess,
@@ -24,5 +25,6 @@ export default defineEventHandler(async (event: H3Event) => {
     })
   }
 
-  return response
+  // Return cloud-agnostic user info
+  return mapPCloudUserToCloudUser(response)
 })

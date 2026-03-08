@@ -70,7 +70,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     case 'PATCH': {
       const body = await readValidatedBody(event, folderBodySchema.parse)
-      const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.RENAME_FOLDER}`
+      const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.MOVE}`
       const response = await $fetch<PCloudRenameFolderResponse>(url, {
         params: { ...baseParams, toname: body.name },
         headers,

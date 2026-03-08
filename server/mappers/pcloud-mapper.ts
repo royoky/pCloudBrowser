@@ -1,9 +1,19 @@
+import type { User } from '#auth-utils'
 import type {
-  PCloudBaseMetadata,
+  PCloudFile,
   PCloudFileMetadata,
+  PCloudFolder,
   PCloudFolderMetadata,
+  PCloudListResponse,
+  PCloudUserInfo,
 } from '~~/server/models/pcloud-api'
-import type { CloudFile, CloudFolder, CloudItem } from '../../shared/models/cloud-item'
+import type {
+  CloudFile,
+  CloudFolder,
+  CloudItem,
+  CloudItemCapabilities,
+  MiniCloudFolder,
+} from '../../shared/models/cloud-item'
 
 /**
  * pCloud to Cloud Item Mapper
@@ -38,7 +48,7 @@ export function mapPCloudItemToCloudItem(
     return {
       ...baseItem,
       type: 'folder',
-      itemCount: (item as PCloudFolderMetadata).filecount || 0,
+      itemCount: 0, // Individual items don't have filecount, only folder listings do
       // Note: entries would be populated separately if needed
     } as CloudFolder
   }
@@ -130,5 +140,22 @@ export function mapPCloudFolderToCloudFolder(
     modifiedAt,
     capabilities,
     itemCount: 0,
+  }
+}
+
+/**
+ * Maps pCloud user info to cloud-agnostic user format
+ */
+export function mapPCloudUserToCloudUser(pcloudUser: PCloudUserInfo): User {
+  return {
+    pcloudId: pcloudUser.uid,
+    email: pcloudUser.email,
+    emailVerified: pcloudUser.emailverified,
+    registered: pcloudUser.registered,
+    premium: pcloudUser.premium,
+    premiumexpires: pcloudUser.premiumexpires,
+    quota: pcloudUser.quota,
+    usedquota: pcloudUser.usedquota,
+    language: pcloudUser.language,
   }
 }

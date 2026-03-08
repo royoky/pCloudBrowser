@@ -46,7 +46,13 @@ export type PCloudItemMetadata = PCloudFileMetadata | PCloudFolderMetadata
 // When querying listfolder, the requested folder contains a 'contents' array
 export interface PCloudFolderContents extends PCloudFolderMetadata {
   contents: PCloudItemMetadata[]
+  filecount: number
 }
+
+// Type aliases for convenience
+export type PCloudFile = PCloudFileMetadata
+export type PCloudFolder = PCloudFolderMetadata
+export type PCloudListResponse = PCloudListFolderResponse
 
 // 3. Specific API Responses (Flattened)
 export interface PCloudUserInfoResponse extends PCloudBaseResponse {
@@ -57,6 +63,19 @@ export interface PCloudUserInfoResponse extends PCloudBaseResponse {
   premium: boolean
   language: string
   // ... other properties exist directly at the root
+}
+
+// User Info interface (used by userinfo endpoint)
+export interface PCloudUserInfo extends PCloudBaseResponse {
+  uid: number
+  email: string
+  emailverified: boolean
+  registered: string // Date string
+  premium: boolean
+  premiumexpires: string // Date string
+  quota: number
+  usedquota: number
+  language: string
 }
 
 export interface PCloudListFolderResponse extends PCloudBaseResponse {
@@ -74,6 +93,29 @@ export interface PCloudRenameFolderResponse extends PCloudBaseResponse {
 export interface PCloudDeleteFolderRecursiveResponse extends PCloudBaseResponse {
   deletedfiles: number
   deletedfolders: number
+}
+
+export interface PCloudUploadFileResponse extends PCloudBaseResponse {
+  metadata: PCloudFileMetadata
+}
+
+export interface PCloudDeleteFileResponse extends PCloudBaseResponse {
+  deletedfiles: number
+}
+
+export interface PCloudFileLinkResponse extends PCloudBaseResponse {
+  host: string
+  path: string
+  expires: string
+  ssl: boolean
+}
+
+export interface PCloudCopyFileResponse extends PCloudBaseResponse {
+  metadata: PCloudFileMetadata
+}
+
+export interface PCloudRenameFileResponse extends PCloudBaseResponse {
+  metadata: PCloudFileMetadata
 }
 
 // 4. Type Guards and Helpers

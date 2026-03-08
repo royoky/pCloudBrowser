@@ -20,7 +20,7 @@ export interface BaseCloudItem<T extends CloudItemType> {
   name: string
   type: T
   path: string
-  parentId?: string
+  parentId: string | null
   createdAt: string
   modifiedAt: string
   capabilities: CloudItemCapabilities
