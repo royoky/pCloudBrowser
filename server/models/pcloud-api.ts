@@ -95,19 +95,20 @@ export interface PCloudDeleteFolderRecursiveResponse extends PCloudBaseResponse 
   deletedfolders: number
 }
 
-export interface PCloudUploadFileResponse extends PCloudBaseResponse {
-  metadata: PCloudFileMetadata
+export interface PCloudUploadResponse extends PCloudBaseResponse {
+  metadata: PCloudFileMetadata[] // Notice it's an array here!
+  checksums: string[]
+  fileids: number[]
 }
 
 export interface PCloudDeleteFileResponse extends PCloudBaseResponse {
-  deletedfiles: number
+  metadata: PCloudFileMetadata & { isdeleted: true }
 }
 
 export interface PCloudFileLinkResponse extends PCloudBaseResponse {
-  host: string
+  hosts: string[]
   path: string
   expires: string
-  ssl: boolean
 }
 
 export interface PCloudCopyFileResponse extends PCloudBaseResponse {

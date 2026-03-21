@@ -42,3 +42,8 @@ export interface CloudFile extends BaseCloudItem<'file'> {
 
 export type CloudItem = CloudFile | CloudFolder
 export type EntryItem = CloudFile | MiniCloudFolder
+
+export interface CloudFileLink {
+  downloadUrl: string
+  expires: string
+}

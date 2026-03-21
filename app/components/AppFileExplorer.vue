@@ -35,6 +35,18 @@ function onFolderClick(clickedId: string | null) {
   }
 }
 
+async function onFileClick(fileId: string) {
+  try {
+    const url = `/api/pcloud/files/${fileId}?proxy=true`
+
+    window.location.href = url
+  }
+  catch (error) {
+    console.error('File download failed:', error)
+    // Show error to user
+  }
+}
+
 function onParentFolderClick() {
   if (parentFolderId.value) {
     folderId.value = parentFolderId.value
@@ -51,9 +63,11 @@ function onParentFolderClick() {
       :files="files"
       :is-top-level="isTopLEvel"
       @on-folder-click="onFolderClick"
+      @on-file-click="onFileClick"
       @on-parent-folder-click="onParentFolderClick"
     />
   </div>
+  <AppFileUpload />
 </template>
 
 <style>

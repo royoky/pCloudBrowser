@@ -83,7 +83,7 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     case 'DELETE': {
-      const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.DELETE}`
+      const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.DELETE_FOLDER}`
       const response = await $fetch<PCloudDeleteFolderRecursiveResponse>(url, {
         params: baseParams,
         headers,

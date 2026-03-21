@@ -1,92 +1,70 @@
 // server/api/pcloud/files/upload.post.ts
 import type { H3Event } from 'h3'
-import type { PCloudUploadFileResponse } from '~~/server/models/pcloud-api'
-import { z } from 'zod'
 import { PCLOUD_API_ENDPOINTS } from '~~/server/constants/pcloud-endpoints'
 import { mapPCloudFileToCloudFile } from '~~/server/mappers/pcloud-mapper'
 import { getPCloudErrorMessage, isPCloudSuccess } from '~~/server/models/pcloud-api'
 
-const uploadFileBodySchema = z.object({
-  folderId: z.number(),
-  file: z.instanceof(File), // For browser uploads
-  filename: z.string().optional(),
-})
-
-// Helper to map pCloud errors to proper HTTP status codes
-function getHttpStatusCode(pcloudResult: number): number {
-  switch (pcloudResult) {
-    case 1000: // Log in required
-    case 2000: // Log in failed
-      return 401 // Unauthorized
-    case 2001: // Invalid file/folder name
-      return 400 // Bad request
-    case 2003: // Access denied
-      return 403 // Forbidden
-    case 2005: // Directory does not exist
-      return 404 // Not found
-    case 2008: // User is over quota
-      return 402 // Payment required
-    case 2041: // Connection broken
-      return 503 // Service unavailable
-    case 4000: // Too many login tries from this IP
-      return 429 // Too many requests
-    case 5000: // Internal error
-    case 5001: // Internal upload error
-      return 500 // Internal server error
-    case 2004: // File/Folder already exists
-      return 409 // Conflict
-    default:
-      return 500 // Internal/Unknown
-  }
-}
-
 export default defineEventHandler(async (event: H3Event) => {
   const baseUrl = event.context?.auth?.hostname
   const token = event.context?.auth?.token
-  
+
   if (!baseUrl || !token) {
+    throw createError({ statusCode: 401, message: 'Authentication required' })
+  }
+
+  // 1. Read the multipart form data from the incoming request
+  const formDataParams = await readMultipartFormData(event)
+  if (!formDataParams || formDataParams.length === 0) {
+    throw createError({ statusCode: 400, message: 'No data provided in upload request' })
+  }
+
+  // 2. Prepare the outgoing FormData for pCloud
+  const pcloudFormData = new FormData()
+
+  // 3. Loop through the parsed Nitro form data and append it
+  for (const item of formDataParams) {
+    if (item.name === 'file' && item.filename) {
+      // It's the actual file! Convert the Node Buffer into a standard web Blob
+      const blob = new Blob([item.data], { type: item.type })
+      pcloudFormData.append('file', blob, item.filename)
+    }
+    else if (item.name) {
+      // It's a metadata field (like 'folderid' or 'nopartial')
+      // Note: item.data is a Buffer, so we must toString() it
+      pcloudFormData.append(item.name, item.data.toString('utf-8'))
+    }
+  }
+
+  // Ensure the frontend actually sent a file
+  if (!pcloudFormData.has('file')) {
+    throw createError({ statusCode: 400, message: 'Missing "file" field in upload' })
+  }
+
+  // 4. Send it to pCloud!
+  const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.UPLOAD}`
+
+  // Note: We do NOT manually set the 'Content-Type' header here.
+  // $fetch automatically detects the FormData body and sets 'multipart/form-data'
+  // along with the crucially important boundary string.
+  const response = await $fetch<any>(url, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${token}`,
+    },
+    body: pcloudFormData,
+  })
+
+  if (!isPCloudSuccess(response)) {
     throw createError({
-      statusCode: 401,
-      message: 'Authentication required',
+      statusCode: 400, // You can reuse your getHttpStatusCode helper here
+      message: getPCloudErrorMessage(response) || 'Upload to storage provider failed',
     })
   }
 
-  try {
-    const body = await readValidatedBody(event, uploadFileBodySchema.parse)
-    const headers = { authorization: `Bearer ${token}` }
-    
-    // Prepare form data for pCloud upload API
-    const formData = new FormData()
-    formData.append('file', body.file)
-    formData.append('folderid', body.folderId.toString())
-    if (body.filename) {
-      formData.append('filename', body.filename)
-    }
+  // 5. Map the response
+  // pCloud's uploadfile response returns an array of metadata objects (in case of batch uploads).
+  // Even if we only uploaded one file, we grab it from the first index.
+  const uploadedFileMetadata = response.metadata[0]
 
-    const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.UPLOAD}`
-    const response = await $fetch<PCloudUploadFileResponse>(url, {
-      method: 'POST',
-      headers,
-      body: formData,
-    })
-
-    if (!isPCloudSuccess(response)) {
-      throw createError({
-        statusCode: getHttpStatusCode(response.result),
-        message: getPCloudErrorMessage(response) || 'File upload failed',
-      })
-    }
-
-    // Return cloud-agnostic file data
-    const currentPath = `/${body.file.name}`
-    return mapPCloudFileToCloudFile(response.metadata, currentPath)
-    
-  } catch (error) {
-    const typedError = error as Error
-    console.error('Error in file upload:', typedError)
-    throw createError({
-      statusCode: 500,
-      message: typedError.message || 'Internal Server Error during file upload',
-    })
-  }
+  return mapPCloudFileToCloudFile(uploadedFileMetadata, '/')
 })

@@ -11,12 +11,10 @@ import { PCLOUD_API_ENDPOINTS } from '~~/server/constants/pcloud-endpoints'
 import { mapPCloudFileToCloudFile } from '~~/server/mappers/pcloud-mapper'
 import { getPCloudErrorMessage, isPCloudSuccess } from '~~/server/models/pcloud-api'
 
+// Use z.coerce to turn strings ("true", "1") into real booleans
 const downloadParamsSchema = z.object({
-  forcedownload: z.boolean().optional().default(false),
-})
-
-const deleteParamsSchema = z.object({
-  recursive: z.boolean().optional().default(false),
+  forcedownload: z.coerce.boolean().optional().default(false),
+  proxy: z.coerce.boolean().optional().default(false),
 })
 
 const copyBodySchema = z.object({
@@ -28,101 +26,116 @@ const renameBodySchema = z.object({
   toname: z.string(),
 })
 
-// Helper to map pCloud errors to proper HTTP status codes
 function getHttpStatusCode(pcloudResult: number): number {
   switch (pcloudResult) {
-    case 1000: // Log in required
-    case 2000: // Log in failed
-      return 401 // Unauthorized
-    case 2001: // Invalid file/folder name
-      return 400 // Bad request
-    case 2003: // Access denied
-      return 403 // Forbidden
-    case 2005: // File does not exist
-      return 404 // Not found
-    case 2008: // User is over quota
-      return 402 // Payment required
-    case 2041: // Connection broken
-      return 503 // Service unavailable
-    case 4000: // Too many login tries from this IP
-      return 429 // Too many requests
-    case 5000: // Internal error
-    case 5001: // Internal upload error
-      return 500 // Internal server error
-    case 2004: // File already exists
-      return 409 // Conflict
+    case 1000:
+    case 2000:
+      return 401
+    case 2001:
+      return 400
+    case 2003:
+      return 403
+    case 2004:
+      return 409
+    case 2005:
+      return 404
+    case 2008:
+      return 402
+    case 2041:
+      return 503
+    case 4000:
+      return 429
     default:
-      return 500 // Internal/Unknown
+      return 500
   }
 }
 
+function createPCloudError(response: any, defaultMsg: string) {
+  return createError({
+    statusCode: getHttpStatusCode(response.result),
+    message: getPCloudErrorMessage(response) || defaultMsg,
+  })
+}
+
 export default defineEventHandler(async (event: H3Event) => {
-  const fileId = event.context?.params?.fileId
+  const fileIdParam = event.context?.params?.fileId
   const baseUrl = event.context?.auth?.hostname
   const token = event.context?.auth?.token
 
-  if (!fileId || !baseUrl || !token) {
-    throw createError({
-      statusCode: 400,
-      message: 'Invalid file ID or authentication required',
-    })
+  if (!fileIdParam || !baseUrl || !token) {
+    throw createError({ statusCode: 400, message: 'Invalid file ID or missing auth' })
   }
 
+  // Ensure fileId is cast to a number for pCloud
+  const fileId = Number(fileIdParam)
   const baseParams = { fileid: fileId }
   const headers = { authorization: `Bearer ${token}` }
 
   switch (event.method) {
     case 'GET': {
-      // Get file download link
       const query = getQuery(event)
       const params = downloadParamsSchema.parse(query)
 
+      // 1. Get the link from pCloud
       const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.DOWNLOAD}`
-      const response = await $fetch<PCloudFileLinkResponse>(url, {
-        params: { ...baseParams, ...params },
+      const pcloudLinkResponse = await $fetch<PCloudFileLinkResponse>(url, {
+        params: {
+          fileid: fileId,
+          forcedownload: params.forcedownload ? 1 : 0,
+        },
         headers,
       })
 
-      if (!isPCloudSuccess(response)) {
+      if (!isPCloudSuccess(pcloudLinkResponse)) {
+        throw createPCloudError(pcloudLinkResponse, 'Failed to get file download link')
+      }
+
+      const directDownloadUrl = `https://${pcloudLinkResponse.hosts[0]}${pcloudLinkResponse.path}`
+
+      // 2. If the frontend wants the JSON link, return it early
+      if (!params.proxy) {
+        return {
+          downloadUrl: directDownloadUrl,
+          expires: pcloudLinkResponse.expires,
+        }
+      }
+
+      // 3. If proxy=true, stream the file through the Nuxt server
+      // We use the native native 'fetch' API here so we can access the raw ReadableStream body
+      const fileStreamResponse = await fetch(directDownloadUrl)
+
+      if (!fileStreamResponse.ok || !fileStreamResponse.body) {
         throw createError({
-          statusCode: getHttpStatusCode(response.result),
-          message: getPCloudErrorMessage(response) || 'Failed to get file download link',
+          statusCode: 502,
+          message: 'Failed to proxy file from storage provider',
         })
       }
 
-      // Return download URL to frontend
-      return {
-        downloadUrl: `${response.ssl ? 'https' : 'http'}://${response.host}${response.path}`,
-        expires: response.expires,
+      // 4. Pass pCloud's headers (Content-Type, Content-Length, Content-Disposition)
+      // straight through to the Nuxt client so the browser knows what the file is
+      for (const [key, value] of fileStreamResponse.headers.entries()) {
+        setResponseHeader(event, key, value)
       }
+
+      // 5. Stream the raw bytes to the client
+      return sendStream(event, fileStreamResponse.body)
     }
 
     case 'DELETE': {
-      // Delete file
-      const query = getQuery(event)
-      const params = deleteParamsSchema.parse(query)
-
-      const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.DELETE}`
+      // Deleting a file doesn't require extra params, just the fileid
+      const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.DELETE_FILE}`
       const response = await $fetch<PCloudDeleteFileResponse>(url, {
-        params: { ...baseParams, ...params },
+        params: baseParams,
         headers,
       })
 
-      if (!isPCloudSuccess(response)) {
-        throw createError({
-          statusCode: getHttpStatusCode(response.result),
-          message: getPCloudErrorMessage(response) || 'Failed to delete file',
-        })
-      }
+      if (!isPCloudSuccess(response))
+        throw createPCloudError(response, 'Failed to delete file')
 
-      return {
-        success: true,
-        deletedCount: response.deletedfiles || 0,
-      }
+      return { success: true }
     }
 
     case 'PATCH': {
-      // Rename file
       const body = await readValidatedBody(event, renameBodySchema.parse)
       const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.MOVE}`
       const response = await $fetch<PCloudRenameFileResponse>(url, {
@@ -130,19 +143,13 @@ export default defineEventHandler(async (event: H3Event) => {
         headers,
       })
 
-      if (!isPCloudSuccess(response)) {
-        throw createError({
-          statusCode: getHttpStatusCode(response.result),
-          message: getPCloudErrorMessage(response) || 'Failed to rename file',
-        })
-      }
+      if (!isPCloudSuccess(response))
+        throw createPCloudError(response, 'Failed to rename file')
 
-      // Return updated file metadata
       return mapPCloudFileToCloudFile(response.metadata, '/')
     }
 
     case 'POST': {
-      // Copy file
       const body = await readValidatedBody(event, copyBodySchema.parse)
       const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.COPY}`
       const response = await $fetch<PCloudCopyFileResponse>(url, {
@@ -150,14 +157,9 @@ export default defineEventHandler(async (event: H3Event) => {
         headers,
       })
 
-      if (!isPCloudSuccess(response)) {
-        throw createError({
-          statusCode: getHttpStatusCode(response.result),
-          message: getPCloudErrorMessage(response) || 'Failed to copy file',
-        })
-      }
+      if (!isPCloudSuccess(response))
+        throw createPCloudError(response, 'Failed to copy file')
 
-      // Return copied file metadata
       return mapPCloudFileToCloudFile(response.metadata, '/')
     }
 
