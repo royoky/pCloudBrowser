@@ -3,7 +3,7 @@ import { ref } from 'vue'
 
 const files = ref<File[]>([])
 const isUploading = ref(false)
-
+const uploadProgress = ref(0)
 const currentFolderId = 0
 
 async function uploadFiles() {
@@ -12,23 +12,47 @@ async function uploadFiles() {
   isUploading.value = true
 
   try {
-    // 3. Loop through the files from the Vuetify component
+    // Loop through the files from the Vuetify component
     for (const file of files.value) {
-      // 4. Construct the FormData exactly as our API expects it
-      const formData = new FormData()
-      formData.append('folderid', currentFolderId.toString())
-      formData.append('nopartial', '1') // Highly recommended by pCloud
-      formData.append('file', file)
-      for (const [key, value] of formData.entries()) {
-        console.log('FormData entry:', key, value)
-      }
+      uploadProgress.value = 0
 
-      // 5. Send it to our shiny new Nuxt route!
-      const uploadedCloudFile = await $fetch('/api/pcloud/files/upload', {
+      // 1. Request signed upload URL from our server (metadata only!)
+      const { uploadUrl, method, headers, fileId } = await $fetch('/api/pcloud/files/upload-url', {
         method: 'POST',
-        body: formData,
+        body: {
+          folderId: currentFolderId,
+          filename: file.name,
+          contentType: file.type,
+          size: file.size,
+          nopartial: true,
+        },
       })
 
+      // 2. Direct upload to pCloud (bypasses our server!)
+      const uploadResponse = await fetch(uploadUrl, {
+        method: method || 'PUT',
+        headers: {
+          'Content-Type': file.type,
+          ...headers,
+        },
+        body: file, // Raw file data goes directly to pCloud!
+        // Track upload progress
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+          }
+        },
+      })
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Failed to upload ${file.name}`)
+      }
+
+      // 3. Verify upload by getting file metadata
+      const uploadedCloudFile = await $fetch(`/api/pcloud/files/${fileId}`, {
+        method: 'GET',
+      })
+      // eslint-disable-next-line no-console
       console.log('Successfully uploaded:', uploadedCloudFile.name)
     }
 
@@ -41,6 +65,7 @@ async function uploadFiles() {
   }
   finally {
     isUploading.value = false
+    uploadProgress.value = 0
   }
 }
 </script>
@@ -54,6 +79,20 @@ async function uploadFiles() {
       clearable
       show-size
     />
+
+    <!-- Upload progress indicator -->
+    <v-progress-linear
+      v-if="isUploading"
+      v-model="uploadProgress"
+      color="primary"
+      height="6"
+      class="mt-2"
+      striped
+    >
+      <template #default="{ value }">
+        <strong>{{ Math.ceil(value) }}%</strong>
+      </template>
+    </v-progress-linear>
 
     <v-btn
       color="primary"

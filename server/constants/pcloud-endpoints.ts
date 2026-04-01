@@ -18,6 +18,7 @@ export const PCLOUD_API_ENDPOINTS = {
     COPY: '/copyfile',
     MOVE: '/renamefile',
     UPLOAD: '/uploadfile',
+    UPLOAD_LINK: '/createuploadlink', // For generating signed upload URLs
     DOWNLOAD: '/getfilelink',
     FILE_PUBLISH: '/getfilepublink',
     FILE_UNPUBLISH: '/unpublishfile',

@@ -9,4 +9,7 @@ export default withNuxt(
       'vue/component-definition-name-casing': ['error', 'PascalCase'],
     },
   }),
+  {
+    ignores: ['**/*.md'],
+  },
 )

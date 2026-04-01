@@ -101,6 +101,14 @@ export interface PCloudUploadResponse extends PCloudBaseResponse {
   fileids: number[]
 }
 
+export interface PCloudUploadUrlResponse extends PCloudBaseResponse {
+  host: string
+  path: string
+  expiration: string
+  ssl: boolean
+  fileid: number
+}
+
 export interface PCloudDeleteFileResponse extends PCloudBaseResponse {
   metadata: PCloudFileMetadata & { isdeleted: true }
 }
