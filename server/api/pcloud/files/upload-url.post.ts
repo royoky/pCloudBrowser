@@ -53,27 +53,22 @@ export default defineEventHandler(async (event: H3Event) => {
   }
 
   try {
-    // 1. Validate request (no file data needed!)
-    const { folderId, filename, contentType, size, nopartial } = await readValidatedBody(
+    const { folderId, contentType, size, nopartial } = await readValidatedBody(
       event,
       uploadRequestSchema.parse,
     )
 
-    // 2. Request a signed upload URL from pCloud
-    const params = {
-      folderid: folderId,
-      filename,
-      ...(contentType && { contenttype: contentType }),
-      ...(size && { size }),
-      nopartial: nopartial ? 1 : 0,
-    }
-
-    // Use the correct pCloud endpoint for creating upload links
     const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.UPLOAD_LINK}`
     const response = await $fetch<PCloudUploadUrlResponse>(url, {
-      method: 'GET', // pCloud uses GET for createuploadlink
+      method: 'GET',
       headers: { authorization: `Bearer ${token}` },
-      params,
+      params: {
+        folderid: folderId,
+        comment: 'Direct upload from pCloud Browser',
+        ...(contentType && { contenttype: contentType }),
+        ...(size && { size }),
+        nopartial: nopartial ? 1 : 0,
+      },
     })
 
     if (!isPCloudSuccess(response)) {
@@ -83,16 +78,15 @@ export default defineEventHandler(async (event: H3Event) => {
       })
     }
 
-    // 3. Construct the upload URL from pCloud's response
-    // pCloud returns host + path + ssl flag, we need to assemble the full URL
-    const uploadUrl = `${response.ssl ? 'https' : 'http'}://${response.host}${response.path}`
+    const uploadUrl = `https://${baseUrl}/uploadtolink?code=${response.code}`
 
     return {
       uploadUrl,
-      method: 'PUT', // pCloud upload links use PUT method
-      headers: {}, // No additional headers needed for pCloud uploads
-      expires: response.expiration,
-      fileId: response.fileid,
+      method: 'POST',
+      headers: {},
+      expires: null,
+      fileId: null,
+      uploadCode: response.code,
     }
   }
   catch (error) {

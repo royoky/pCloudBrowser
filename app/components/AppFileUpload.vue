@@ -1,10 +1,15 @@
 <script setup lang="ts">
+import type { UploadResponse } from '~~/server/api/pcloud/files/upload.post'
 import { ref } from 'vue'
+
+const emit = defineEmits<{
+  (e: 'filesUploaded'): void
+}>()
 
 const files = ref<File[]>([])
 const isUploading = ref(false)
-const uploadProgress = ref(0)
-const currentFolderId = 0
+const uploadProgress = ref<number>(0)
+const currentFolderId = ref<number>(0)
 
 async function uploadFiles() {
   if (files.value.length === 0)
@@ -12,56 +17,66 @@ async function uploadFiles() {
   isUploading.value = true
 
   try {
-    // Loop through the files from the Vuetify component
     for (const file of files.value) {
       uploadProgress.value = 0
 
-      // 1. Request signed upload URL from our server (metadata only!)
-      const { uploadUrl, method, headers, fileId } = await $fetch('/api/pcloud/files/upload-url', {
-        method: 'POST',
-        body: {
-          folderId: currentFolderId,
-          filename: file.name,
-          contentType: file.type,
-          size: file.size,
-          nopartial: true,
-        },
-      })
+      const uploadResponse = await new Promise<UploadResponse>(
+        (resolve, reject) => {
+          const xhr = new XMLHttpRequest()
+          xhr.open('POST', '/api/pcloud/files/upload', true)
 
-      // 2. Direct upload to pCloud (bypasses our server!)
-      const uploadResponse = await fetch(uploadUrl, {
-        method: method || 'PUT',
-        headers: {
-          'Content-Type': file.type,
-          ...headers,
-        },
-        body: file, // Raw file data goes directly to pCloud!
-        // Track upload progress
-        onUploadProgress: (progressEvent) => {
-          if (progressEvent.total) {
-            uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+          // Track upload progress
+          xhr.upload.onprogress = (progressEvent: ProgressEvent) => {
+            if (progressEvent.total) {
+              uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+            }
           }
-        },
-      })
 
-      if (!uploadResponse.ok) {
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try {
+                const response = JSON.parse(xhr.responseText)
+                resolve(response)
+              }
+              catch (error) {
+                console.error('Failed to parse JSON response:', error)
+                reject(new Error(`Invalid JSON response: ${xhr.responseText}`))
+              }
+            }
+            else {
+              reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.responseText}`))
+            }
+          }
+
+          xhr.onerror = () => {
+            reject(new Error('Upload failed'))
+          }
+
+          // Create & send FormData for the upload
+          const formData = new FormData()
+          formData.append('folderId', currentFolderId.value.toString())
+          formData.append('filename', file.name)
+          formData.append('contentType', file.type)
+          formData.append('nopartial', 'true')
+          formData.append('file', file)
+
+          xhr.send(formData)
+        },
+      )
+
+      if (!uploadResponse || !uploadResponse.success) {
         throw new Error(`Failed to upload ${file.name}`)
       }
 
-      // 3. Verify upload by getting file metadata
-      const uploadedCloudFile = await $fetch(`/api/pcloud/files/${fileId}`, {
-        method: 'GET',
-      })
-      // eslint-disable-next-line no-console
-      console.log('Successfully uploaded:', uploadedCloudFile.name)
+      console.info('Successfully uploaded:', file.name, 'File ID:', uploadResponse.fileId)
     }
 
-    // Clear the Vuetify dropzone once everything is done
     files.value = []
+
+    emit('filesUploaded')
   }
   catch (error) {
     console.error('Upload failed:', error)
-    // Handle error (e.g., show a Vuetify v-snackbar)
   }
   finally {
     isUploading.value = false
@@ -72,13 +87,7 @@ async function uploadFiles() {
 
 <template>
   <v-container>
-    <v-file-upload
-      v-model="files"
-      title="Drag and Drop to pCloud"
-      multiple
-      clearable
-      show-size
-    />
+    <v-file-upload v-model="files" title="Drag and Drop to pCloud" multiple clearable show-size />
 
     <!-- Upload progress indicator -->
     <v-progress-linear

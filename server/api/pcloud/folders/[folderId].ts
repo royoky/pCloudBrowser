@@ -43,8 +43,28 @@ export default defineEventHandler(async (event: H3Event) => {
 
   switch (event.method) {
     case 'GET': {
+      // Validate folderId parameter
+      if (!folderId) {
+        throw createError({
+          statusCode: 400,
+          message: 'Folder ID is required',
+        })
+      }
+
+      // Ensure folderid is sent as a number (pCloud expects numeric folder IDs)
+      const folderIdNum = Number(folderId)
+      if (Number.isNaN(folderIdNum)) {
+        throw createError({
+          statusCode: 400,
+          message: 'Folder ID must be a valid number',
+        })
+      }
+
       const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.LIST}`
-      const response = await $fetch<PCloudListFolderResponse>(url, { params: baseParams, headers })
+      const response = await $fetch<PCloudListFolderResponse>(url, {
+        params: { folderid: folderIdNum, ...query },
+        headers,
+      })
 
       if (!isPCloudSuccess(response))
         throw createPCloudError(response)

@@ -55,6 +55,12 @@ export type PCloudFolder = PCloudFolderMetadata
 export type PCloudListResponse = PCloudListFolderResponse
 
 // 3. Specific API Responses (Flattened)
+export interface PCloudTokenResponse extends PCloudBaseResponse {
+  access_token: string
+  token_type: string
+  uid: number
+}
+
 export interface PCloudUserInfoResponse extends PCloudBaseResponse {
   userid: number
   email: string
@@ -96,17 +102,16 @@ export interface PCloudDeleteFolderRecursiveResponse extends PCloudBaseResponse 
 }
 
 export interface PCloudUploadResponse extends PCloudBaseResponse {
-  metadata: PCloudFileMetadata[] // Notice it's an array here!
-  checksums: string[]
-  fileids: number[]
+  fileids: number[] // Array of uploaded file IDs
+  metadata: PCloudFileMetadata[] // Array of metadata objects for uploaded files
+  checksums: string[] // Array of checksums for uploaded files
 }
 
 export interface PCloudUploadUrlResponse extends PCloudBaseResponse {
-  host: string
-  path: string
-  expiration: string
-  ssl: boolean
-  fileid: number
+  uploadlinkid: number
+  link: string
+  mail: string
+  code: string
 }
 
 export interface PCloudDeleteFileResponse extends PCloudBaseResponse {

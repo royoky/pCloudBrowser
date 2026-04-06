@@ -9,7 +9,7 @@ const breadcrumbsItems = ref<string[]>(['All Files'])
 
 const params = { recursive: true }
 
-const { data } = await useListFolder(folderId, params)
+const { data, refresh } = await useListFolder(folderId, params)
 
 const folders = computed<MiniCloudFolder[]>(
   () => data.value?.entries.filter((item): item is MiniCloudFolder => item.type === 'folder') ?? [],
@@ -39,7 +39,7 @@ async function onFileClick(fileId: string) {
   try {
     const url = `/api/pcloud/files/${fileId}?proxy=true`
 
-    window.location.href = url
+    globalThis.location.href = url
   }
   catch (error) {
     console.error('File download failed:', error)
@@ -67,7 +67,7 @@ function onParentFolderClick() {
       @on-parent-folder-click="onParentFolderClick"
     />
   </div>
-  <AppFileUpload />
+  <AppFileUpload @files-uploaded="refresh" />
 </template>
 
 <style>
