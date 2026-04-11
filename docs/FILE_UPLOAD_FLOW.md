@@ -1,275 +1,269 @@
-# Cloud-Agnostic File Upload Flow
+# File Upload System Documentation
 
 ## Overview
 
-This implementation follows a **direct-to-cloud** upload pattern that:
-- ✅ Avoids server memory issues with large files
-- ✅ Maintains cloud-agnostic architecture
-- ✅ Provides better performance and scalability
-- ✅ Follows SOLID principles
+This document describes the file upload implementation in the pCloud Browser application, including the architecture, data flow, and component interactions.
 
-## Upload Flow
+## Architecture
 
 ```mermaid
-graph TD
-    A[Frontend] -->|1. Request upload URL| B[Our Server]
-    B -->|2. Request signed URL| C[pCloud API]
-    C -->|3. Return signed URL| B
-    B -->|4. Return upload instructions| A
-    A -->|5. Direct file upload| C
-    A -->|6. Verify upload| B
-    B -->|7. Return file metadata| A
+flowchart TD
+    A[Frontend: AppFileUpload] -->|multipart/form-data| B[Server: /api/pcloud/files/upload]
+    B -->|OAuth2 + File Data| C[pCloud API: /uploadfile]
+    C -->|Response| B
+    B -->|JSON Response| A
+    A -->|files-uploaded event| D[Frontend: AppFileExplorer]
+    D -->|refresh()| E[useListFolder Composable]
+    E -->|Updated Data| D
 ```
 
-## Step-by-Step Implementation
+## Data Flow
 
-### 1. Frontend Requests Upload URL
+### 1. Frontend Upload Process
+
+**Component**: `AppFileUpload.vue`
 
 ```typescript
-// Frontend: Request upload URL from our server
-const { uploadUrl, method, headers, fileId } = await $fetch('/api/pcloud/files/upload-url', {
-  method: 'POST',
-  body: {
-    folderId: 123,
-    filename: 'document.pdf',
-    contentType: 'application/pdf',
-    size: file.size,
+// Upload process
+const uploadResponse = await new Promise<UploadResponse>((resolve, reject) => {
+  const xhr = new XMLHttpRequest()
+  xhr.open('POST', '/api/pcloud/files/upload', true)
+  
+  // Progress tracking
+  xhr.upload.onprogress = (progressEvent: ProgressEvent) => {
+    uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total)
   }
+  
+  // Send FormData with file and metadata
+  const formData = new FormData()
+  formData.append('folderId', currentFolderId.value.toString())
+  formData.append('filename', file.name)
+  formData.append('contentType', file.type)
+  formData.append('nopartial', 'true')
+  formData.append('file', file)
+  
+  xhr.send(formData)
 })
 ```
 
-### 2. Server Requests Signed URL from pCloud
+### 2. Server-Side Processing
+
+**Endpoint**: `server/api/pcloud/files/upload.post.ts`
 
 ```typescript
-// Server: server/api/pcloud/files/upload-url.post.ts
-const response = await $fetch<PCloudUploadUrlResponse>(pcloudUploadUrl, {
+// Server receives multipart/form-data
+const multipartData = await readMultipartFormData(event)
+
+// Extract file and parameters
+const folderId = multipartData.find(part => part.name === 'folderId')?.data?.toString()
+const fileData = multipartData.find(part => part.name === 'file')?.data
+
+// Forward to pCloud with OAuth2 authentication
+const formData = new FormData()
+formData.append('folderid', folderId)
+formData.append('nopartial', '1')
+formData.append('file', new Blob([fileData]), filename)
+
+const response = await fetch(pcloudUrl, {
   method: 'POST',
   headers: { authorization: `Bearer ${token}` },
-  params: {
-    folderid: folderId,
-    filename,
-    contenttype: contentType,
-    size,
-    nopartial: 1
+  body: formData
+})
+
+// Return generic cloud item to frontend
+return {
+  success: true,
+  fileId: response.fileids[0],
+  metadata: response.metadata[0]
+}
+```
+
+### 3. Parent Component Refresh
+
+**Component**: `AppFileExplorer.vue`
+
+```typescript
+// Listen for upload completion event
+<AppFileUpload @files-uploaded="onFilesUploaded" />
+
+// Handle refresh
+const onFilesUploaded = async () => {
+  try {
+    await refresh() // Calls useListFolder's refresh method
+  } catch (error) {
+    console.error('Failed to refresh folder list:', error)
   }
-})
-```
-
-### 3. Frontend Uploads Directly to pCloud
-
-```typescript
-// Frontend: Direct upload to pCloud (bypassing our server!)
-const uploadResponse = await fetch(uploadUrl, {
-  method: method || 'PUT',
-  headers: {
-    'Content-Type': file.type,
-    ...headers,
-  },
-  body: file, // Raw file data - no server memory usage!
-})
-
-if (!uploadResponse.ok) {
-  throw new Error('Direct upload failed')
 }
 ```
 
-### 4. Verify Upload (Optional)
+## Component API
 
-```typescript
-// Frontend: Verify upload by getting file metadata
-const fileMetadata = await $fetch('/api/pcloud/files/{fileId}', {
-  method: 'GET'
-})
-```
+### AppFileUpload Props
 
-## API Endpoints
+| Prop | Type | Description |
+|------|------|-------------|
+| None | - | Self-contained upload component |
 
-### POST `/api/pcloud/files/upload-url`
+### AppFileUpload Events
 
-**Request Body:**
-```json
-{
-  "folderId": 123,
-  "filename": "document.pdf",
-  "contentType": "application/pdf",
-  "size": 1024000,
-  "nopartial": true
-}
-```
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `files-uploaded` | None | Emitted when all files uploaded successfully |
 
-**Response:**
-```json
-{
-  "uploadUrl": "https://upload.pcloud.com/...",
-  "method": "PUT",
-  "headers": {
-    "Authorization": "Bearer ..."
-  },
-  "expires": "2023-12-31T23:59:59Z",
-  "fileId": 456
-}
-```
+### AppFileExplorer Events
 
-### GET `/api/pcloud/files/{fileId}`
-
-**Response:**
-```json
-{
-  "downloadUrl": "https://download.pcloud.com/...",
-  "expires": "2023-12-31T23:59:59Z"
-}
-```
+| Event | Handler | Description |
+|-------|---------|-------------|
+| `files-uploaded` | `onFilesUploaded` | Refreshes file list after uploads |
 
 ## Error Handling
 
-The server maps pCloud error codes to appropriate HTTP status codes:
+### Frontend Errors
 
-| pCloud Code | HTTP Status | Description |
-|-------------|-------------|-------------|
-| 1000, 2000 | 401 | Authentication required/failed |
-| 2001 | 400 | Invalid filename |
-| 2003 | 403 | Access denied |
-| 2005 | 404 | Folder doesn't exist |
-| 2008 | 402 | User over quota |
-| 2041 | 503 | Connection broken |
-| 4000 | 429 | Too many requests |
-| 5000, 5001 | 500 | Internal error |
-| 2004 | 409 | File already exists |
+- **Network Errors**: Handled with try/catch in uploadFiles()
+- **JSON Parse Errors**: Caught in XMLHttpRequest onload
+- **Validation Errors**: Displayed to user via console.error
 
-## Benefits
+### Server Errors
 
-### ✅ Architecture
-- **Cloud-Agnostic**: Frontend doesn't know it's talking to pCloud
-- **SOLID Principles**: Single responsibility, open/closed, interface segregation
-- **Clean Separation**: URL generation vs. file upload
+- **Authentication**: 401 errors from pCloud
+- **Validation**: 400 errors for invalid parameters
+- **Quota**: 402 errors when storage full
+- **Not Found**: 404 errors for invalid folders
 
-### ✅ Performance
-- **No Memory Issues**: Files never touch our server
-- **Scalable**: Handles unlimited file sizes
-- **Parallel Uploads**: Multiple files can upload simultaneously
-- **Reduced Bandwidth**: Our server only handles metadata
+### Error Response Format
 
-### ✅ Reliability
-- **Resilient**: Direct uploads continue even if our server restarts
-- **Retryable**: Frontend can retry failed uploads
-- **Progress Tracking**: Easy to implement upload progress
-
-### ✅ Security
-- **Signed URLs**: Temporary, scoped access
-- **No File Processing**: Reduced attack surface
-- **HTTPS**: All transfers encrypted
-
-## Frontend Implementation Example
-
-```typescript
-// composables/useFileUpload.ts
-import { ref } from 'vue'
-
-export function useFileUpload() {
-  const uploadProgress = ref(0)
-  const isUploading = ref(false)
-  const error = ref<string | null>(null)
-
-  async function uploadFile(file: File, folderId: number) {
-    try {
-      isUploading.value = true
-      uploadProgress.value = 0
-      error.value = null
-
-      // 1. Get signed URL
-      const { uploadUrl, method, headers, fileId } = await $fetch('/api/pcloud/files/upload-url', {
-        method: 'POST',
-        body: {
-          folderId,
-          filename: file.name,
-          contentType: file.type,
-          size: file.size,
-        }
-      })
-
-      // 2. Direct upload with progress tracking
-      const response = await fetch(uploadUrl, {
-        method: method || 'PUT',
-        headers: {
-          'Content-Type': file.type,
-          ...headers,
-        },
-        body: file,
-        onUploadProgress: (progressEvent) => {
-          if (progressEvent.total) {
-            uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total)
-          }
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Upload failed')
-      }
-
-      // 3. Verify upload
-      const fileMetadata = await $fetch(`/api/pcloud/files/${fileId}`)
-      return fileMetadata
-    }
-    catch (err) {
-      error.value = err.message
-      throw err
-    }
-    finally {
-      isUploading.value = false
-    }
-  }
-
-  return {
-    uploadFile,
-    uploadProgress,
-    isUploading,
-    error
-  }
+```json
+{
+  "error": true,
+  "url": "/api/pcloud/files/upload",
+  "statusCode": 400,
+  "statusMessage": "Bad Request",
+  "message": "Invalid folder ID - must be a number"
 }
 ```
 
-## Migration from Old Approach
+## Performance Considerations
 
-If you were previously using the server-mediated upload:
+### Current Implementation
 
-**Before (❌ Memory issues):**
-```typescript
-// Old approach - file goes through our server
-const formData = new FormData()
-formData.append('file', file)
-const result = await $fetch('/api/pcloud/files/upload', {
-  method: 'POST',
-  body: formData // ❌ File data sent to our server
-})
-```
+- **Memory Usage**: Files loaded into memory (suitable for <50MB files)
+- **Upload Speed**: Direct to pCloud after server auth
+- **Refresh**: Only refreshes current folder, not entire tree
 
-**After (✅ Direct to cloud):**
-```typescript
-// New approach - file goes directly to pCloud
-const { uploadUrl } = await $fetch('/api/pcloud/files/upload-url', {
-  method: 'POST',
-  body: { folderId, filename: file.name } // ✅ Only metadata
-})
+### Future Optimizations
 
-await fetch(uploadUrl, {
-  method: 'PUT',
-  body: file // ✅ File goes directly to pCloud
-})
-```
+1. **Chunked Uploads**: For files >50MB
+2. **Server-Side Streaming**: Reduce memory usage
+3. **Selective Refresh**: Only update affected parts of UI
+4. **Caching**: Cache folder listings where appropriate
+
+## Security
+
+- **OAuth2 Tokens**: Never exposed to client
+- **HTTPS**: All communications encrypted
+- **Input Validation**: Server validates all parameters
+- **File Types**: Content-Type validation
 
 ## Testing
 
-To test the upload flow:
+### Manual Testing
 
-1. **Mock the upload URL endpoint** in your tests
-2. **Verify the frontend** receives correct URL and headers
-3. **Test error cases** (authentication, quota, invalid filenames)
-4. **Test large files** to ensure no memory issues
-5. **Test network interruptions** to verify retry logic
+1. **Small Files**: <1MB - ✅ Working
+2. **Medium Files**: 1-50MB - ✅ Working
+3. **Progress Tracking**: Visual progress bar - ✅ Working
+4. **Error Handling**: Invalid folders, auth errors - ✅ Working
+5. **Auto Refresh**: File list updates - ✅ Working
 
-## Notes
+### Automated Testing (Future)
 
-- The `nopartial` parameter disables partial uploads for simplicity
-- Upload URLs are temporary and expire (typically after 15-30 minutes)
-- For very large files (>100MB), consider implementing chunked uploads
-- Remember to handle CORS properly if testing locally
+```typescript
+// Example test case
+test('uploads file successfully', async () => {
+  const { uploadFile } = useUpload()
+  const result = await uploadFile(testFile, '0')
+  
+  expect(result.success).toBe(true)
+  expect(result.fileId).toBeDefined()
+})
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Error 1101: Invalid request**
+   - Cause: Missing or invalid folderId parameter
+   - Solution: Ensure folderId is valid number
+
+2. **Error 2008: User over quota**
+   - Cause: pCloud storage limit reached
+   - Solution: Show user-friendly message
+
+3. **Upload hangs at 99%**
+   - Cause: Large file hitting memory limits
+   - Solution: Implement chunked uploads
+
+4. **Files not appearing after upload**
+   - Cause: Refresh event not handled
+   - Solution: Check event emission/listening
+
+## Best Practices
+
+1. **Always validate inputs** before upload
+2. **Show progress** to users for better UX
+3. **Handle errors gracefully** with user-friendly messages
+4. **Clean up resources** after upload completion
+5. **Use events** for cross-component communication
+6. **Keep components decoupled** for better maintainability
+
+## Future Enhancements
+
+1. **Drag and Drop**: Native drag/drop support
+2. **Folder Upload**: Upload entire folders
+3. **Resume Support**: Pause/resume large uploads
+4. **Multiple Providers**: Google Drive, Dropbox support
+5. **Background Uploads**: Web Workers for large files
+
+## API Reference
+
+### Frontend Components
+
+```vue
+<AppFileUpload @files-uploaded="handleUploadComplete" />
+```
+
+### Server Endpoints
+
+- `POST /api/pcloud/files/upload` - Upload file
+- `GET /api/pcloud/folders/{folderId}` - List folder contents
+
+### Composable Functions
+
+```typescript
+const { useListFolder } = useFolder()
+const { data, refresh } = useListFolder(folderId)
+```
+
+## Changelog
+
+### v1.0 (Current)
+- Basic file upload with progress
+- Automatic refresh on completion
+- Event-based communication
+- Error handling
+
+### v2.0 (Planned)
+- Chunked uploads for large files
+- Multiple provider support
+- Background uploads
+- Comprehensive test coverage
+
+## Maintainers
+
+- Primary: [Your Name]
+- Review: [Team Name]
+
+## License
+
+MIT © [Your Company]
