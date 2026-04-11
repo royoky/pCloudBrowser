@@ -1,11 +1,18 @@
-import type {
-  ListFolderData,
-  PCloudCreateFolderMetadata,
-} from '~/models/api-return-types'
+import type { CloudFolder } from '~~/shared/models/cloud-item'
 
-export default function () {
-  async function useListFolder(
-    folderId: MaybeRefOrGetter<number>,
+/**
+ * Folder management composable
+ * Provides functions for listing and managing folders in pCloud
+ */
+export function useFolder() {
+  /**
+   * List folder contents
+   * @param folderId - The folder ID to list
+   * @param params - Optional query parameters
+   * @returns UseFetch result with data, status, error, and refresh
+   */
+  function useListFolder(
+    folderId: MaybeRefOrGetter<string>,
     params?: {
       recursive?: boolean
       showDeleted?: boolean
@@ -13,23 +20,19 @@ export default function () {
       noShares?: boolean
     },
   ) {
-    return useFetch<ListFolderData>(() => `/api/pcloud/folders/${toValue(folderId)}`, {
+    return useFetch<CloudFolder>(() => `/api/pcloud/folders/${toValue(folderId)}`, {
       params,
     })
   }
 
-  async function useCreateFolder({
-    parentFolderId,
-    name,
-  }: {
-    parentFolderId: number
-    name: string
-  }) {
-    return useFetch<{
-      result: number
-      metadata: PCloudCreateFolderMetadata
-      error?: string
-    }>('$api/pcloud/folders', {
+  /**
+   * Create a new folder
+   * @param parentFolderId - Parent folder ID
+   * @param name - New folder name
+   * @returns UseFetch result for the creation
+   */
+  function useCreateFolder({ parentFolderId, name }: { parentFolderId: number, name: string }) {
+    return useFetch('/api/pcloud/folders', {
       params: {
         folderid: parentFolderId,
       },

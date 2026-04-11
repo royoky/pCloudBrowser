@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import type { PCloudFile, PCloudFolder } from '~/models/api-return-types'
+import type { CloudFile, MiniCloudFolder } from '~~/shared/models/cloud-item'
 
 defineProps<{
-  folders: PCloudFolder[] | null
-  files: PCloudFile[] | null
+  folders: MiniCloudFolder[] | null
+  files: CloudFile[] | null
   isTopLevel: boolean
 }>()
 
 defineEmits<{
-  (e: 'onFolderClick', id: number): void
-  (e: 'onFileClick', id: number): void
+  (e: 'onFolderClick', id: string): void
+  (e: 'onFileClick', id: string): void
   (e: 'onParentFolderClick'): void
 }>()
 
@@ -24,11 +24,7 @@ defineEmits<{
     <VListSubheader inset>
       Folders
     </VListSubheader>
-    <VListItem
-      v-if="!isTopLevel"
-      title=".."
-      @click="$emit('onParentFolderClick')"
-    >
+    <VListItem v-if="!isTopLevel" title=".." @click="$emit('onParentFolderClick')">
       <template #prepend>
         <VAvatar color="grey-lighten-1">
           <VIcon color="white">
@@ -42,7 +38,7 @@ defineEmits<{
       v-for="folder in folders"
       :key="folder.id"
       :folder="folder"
-      @on-folder-click="$emit('onFolderClick', folder.folderid)"
+      @on-folder-click="$emit('onFolderClick', folder.id)"
     />
 
     <VDivider inset />
@@ -50,6 +46,11 @@ defineEmits<{
     <VListSubheader v-if="files?.length" inset>
       Files
     </VListSubheader>
-    <AppFile v-for="file in files" :key="file.id" :file="file" @click="$emit('onFileClick', file.id)" />
+    <AppFile
+      v-for="file in files"
+      :key="file.id"
+      :file="file"
+      @click="$emit('onFileClick', file.id)"
+    />
   </VList>
 </template>

@@ -1,82 +1,133 @@
+// server/api/[folderId].ts
 import type { H3Event } from 'h3'
 import type {
-  PCloudApiResponse,
-  PCloudDeleteResponse,
-  PCloudFolder,
-  PCloudListResponse,
+  PCloudCreateFolderResponse,
+  PCloudDeleteFolderRecursiveResponse,
+  PCloudListFolderResponse,
+  PCloudRenameFolderResponse,
 } from '~~/server/models/pcloud-api'
 import { z } from 'zod'
 import { PCLOUD_API_ENDPOINTS } from '~~/server/constants/pcloud-endpoints'
 import {
-  getPCloudErrorMessage,
-  isPCloudSuccess,
-} from '~~/server/models/pcloud-api'
+  mapPCloudFolderToCloudFolder, // Suggestion: create this mapper for single folders
+  mapPCloudListToCloudFolder,
+} from '~~/server/mappers/pcloud-mapper'
+import { getPCloudErrorMessage, isPCloudSuccess } from '~~/server/models/pcloud-api'
 
-const createFolderBodySchema = z.object({ name: z.string() })
+const folderBodySchema = z.object({ name: z.string() })
+
+// Helper to map pCloud errors to proper HTTP status codes
+function getHttpStatusCode(pcloudResult: number): number {
+  switch (pcloudResult) {
+    case 1000:
+    case 2000:
+      return 401 // Unauthorized / Login failed
+    case 2003:
+      return 403 // Access denied
+    case 2005:
+      return 404 // Directory does not exist
+    case 2004:
+      return 409 // File/Folder already exists
+    default:
+      return 500 // Internal/Unknown
+  }
+}
 
 export default defineEventHandler(async (event: H3Event) => {
   const query = getQuery(event)
   const folderId = event.context?.params?.folderId
-  const params = {
-    folderid: folderId,
-    ...query,
-  }
   const baseUrl = event.context.auth.hostname
   const headers = { authorization: `Bearer ${event.context.auth.token}` }
-  let url = ''
-  let body
 
-  // Type the response based on the HTTP method
-  let response:
-    | PCloudListResponse
-    | PCloudApiResponse<PCloudFolder>
-    | PCloudApiResponse<PCloudDeleteResponse>
-    | PCloudApiResponse<unknown>
+  const baseParams = { folderid: folderId, ...query }
 
   switch (event.method) {
-    case 'GET':
-      url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.LIST}`
-      response = await $fetch<PCloudListResponse>(url, { params, headers })
-      break
-    case 'POST':
-      body = await readValidatedBody(event, createFolderBodySchema.parse)
-      Object.assign(params, { name: body.name })
-      url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.CREATE_FOLDER}`
-      response = await $fetch<PCloudApiResponse<PCloudFolder>>(url, {
-        params,
+    case 'GET': {
+      // Validate folderId parameter
+      if (!folderId) {
+        throw createError({
+          statusCode: 400,
+          message: 'Folder ID is required',
+        })
+      }
+
+      // Ensure folderid is sent as a number (pCloud expects numeric folder IDs)
+      const folderIdNum = Number(folderId)
+      if (Number.isNaN(folderIdNum)) {
+        throw createError({
+          statusCode: 400,
+          message: 'Folder ID must be a valid number',
+        })
+      }
+
+      const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.LIST}`
+      const response = await $fetch<PCloudListFolderResponse>(url, {
+        params: { folderid: folderIdNum, ...query },
         headers,
       })
-      break
-    case 'PATCH':
-      body = await readValidatedBody(event, createFolderBodySchema.parse)
-      Object.assign(params, { toname: body.name })
-      url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.MOVE}`
-      response = await $fetch<PCloudApiResponse<PCloudFolder>>(url, {
-        params,
+
+      if (!isPCloudSuccess(response))
+        throw createPCloudError(response)
+
+      const currentPath = response.metadata?.path || '/'
+      return mapPCloudListToCloudFolder(response, currentPath)
+    }
+
+    case 'POST': {
+      const body = await readValidatedBody(event, folderBodySchema.parse)
+      const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.CREATE_FOLDER}`
+      const response = await $fetch<PCloudCreateFolderResponse>(url, {
+        params: { ...baseParams, name: body.name },
         headers,
       })
-      break
-    case 'DELETE':
-      url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.DELETE}`
-      // Add recursive parameter for deletefolderrecursive endpoint
-      Object.assign(params, { recursive: 1 })
-      response = await $fetch<PCloudDeleteResponse>(url, { params, headers })
-      break
+
+      if (!isPCloudSuccess(response))
+        throw createPCloudError(response)
+
+      // Return agnostic folder data to the frontend
+      return mapPCloudFolderToCloudFolder(response.metadata)
+    }
+
+    case 'PATCH': {
+      const body = await readValidatedBody(event, folderBodySchema.parse)
+      const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.MOVE}`
+      const response = await $fetch<PCloudRenameFolderResponse>(url, {
+        params: { ...baseParams, toname: body.name },
+        headers,
+      })
+
+      if (!isPCloudSuccess(response))
+        throw createPCloudError(response)
+
+      return mapPCloudFolderToCloudFolder(response.metadata)
+    }
+
+    case 'DELETE': {
+      const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.DELETE_FOLDER}`
+      const response = await $fetch<PCloudDeleteFolderRecursiveResponse>(url, {
+        params: baseParams,
+        headers,
+      })
+
+      if (!isPCloudSuccess(response))
+        throw createPCloudError(response)
+
+      // Return a standard agnostic success response
+      return {
+        success: true,
+        deletedCount: (response.deletedfiles || 0) + (response.deletedfolders || 0),
+      }
+    }
+
     default:
-      throw createError({
-        statusCode: 405,
-        message: 'Method not allowed',
-      })
+      throw createError({ statusCode: 405, message: 'Method not allowed' })
   }
-
-  if (!isPCloudSuccess(response)) {
-    const errorMessage
-      = getPCloudErrorMessage(response) || 'Folder operation failed'
-    throw createError({
-      statusCode: response.result === 2000 ? 404 : 500,
-      message: errorMessage,
-    })
-  }
-
-  return response
 })
+
+// Helper function to keep the switch statement clean
+function createPCloudError(response: any) {
+  return createError({
+    statusCode: getHttpStatusCode(response.result),
+    message: getPCloudErrorMessage(response) || 'Folder operation failed',
+  })
+}

@@ -1,222 +1,177 @@
 /**
  * pCloud API Base Model - Server Side
- * Based on pCloud HTTP JSON Protocol: https://docs.pcloud.com/protocols/http_json_protocol/
- *
- * This model provides TypeScript interfaces for the pCloud API responses and requests,
- * following their JSON protocol specification. Used exclusively by server-side code.
+ * Based on pCloud HTTP JSON Protocol
  */
 
 import { PCloudResultCode } from '../constants/pcloud-result-codes'
 
-// Type for error result codes (all non-zero codes)
-export type PCloudErrorResultCode
-  = | PCloudResultCode.ERROR
-    | PCloudResultCode.PARTIAL_ERROR
-    | PCloudResultCode.AUTHORIZATION_ERROR
-    | PCloudResultCode.NOT_FOUND
-    | PCloudResultCode.ALREADY_EXISTS
-    | PCloudResultCode.INVALID_PARAMS
-    | PCloudResultCode.RATE_LIMIT
-    | PCloudResultCode.MAINTENANCE
-    | PCloudResultCode.FILE_TOO_LARGE
-    | PCloudResultCode.STORAGE_QUOTA_EXCEEDED
-    | PCloudResultCode.SHARE_NOT_FOUND
-    | PCloudResultCode.SHARE_PERMISSION_DENIED
-
-export interface PCloudApiResponse<T = any> {
+// 1. Base Response Shape
+// pCloud always returns a 'result' number. If it's not 0, it includes an 'error' string.
+export interface PCloudBaseResponse {
   result: number
-  metadata?: Record<string, any>
   error?: string
-  data?: T
 }
 
-export interface PCloudErrorResponse extends PCloudApiResponse<never> {
-  result: PCloudErrorResultCode
-  error: string
-}
+// 2. Metadata Structures (Discriminated Union)
+// Define pCloud file categories as const for type safety
+export const PCLOUD_FILE_CATEGORIES = {
+  Uncategorized: 0,
+  Image: 1,
+  Video: 2,
+  Audio: 3,
+  Document: 4,
+  Archive: 5
+} as const
 
-export interface PCloudSuccessResponse<T = any> extends PCloudApiResponse<T> {
-  result: PCloudResultCode.SUCCESS
-  metadata?: Record<string, any>
-  data?: T
-}
+// Extract category type from the const object
+export type PCloudFileCategory = typeof PCLOUD_FILE_CATEGORIES[keyof typeof PCLOUD_FILE_CATEGORIES]
 
-// Discriminated union for better type safety
-export type PCloudResponse<T = any>
-  = | PCloudSuccessResponse<T>
-    | PCloudErrorResponse
-
-// Common parameter types
-export interface PCloudAuthParams {
-  username?: string
-  password?: string
-  auth?: string
-  getauth?: number
-  logout?: number
-}
-
-export interface PCloudFileParams {
-  path?: string
-  folderid?: number
-  name?: string
-  create?: number
-  recursive?: number
-}
-
-export interface PCloudListParams {
-  path?: string
-  folderid?: number
-  recursive?: number
-  no_files?: number
-  no_folders?: number
-  no_shares?: number
-  no_deleted?: number
-}
-
-// Common response types
-export interface PCloudUserInfo extends PCloudApiResponse<PCloudUserInfo> {
-  userid: number
-  email: string
-  emailverified: boolean
+export interface PCloudBaseMetadata {
   name: string
-  usedquota: number
-  quota: number
-  plan: number
-  business: number
-  premium: number
-  premiumexpires?: string
-  registered: string
-  language: string
-  publiclinkquota: number
-  usedpubliclinkquota: number
-  teamfoldersquota: number
-  usedteamfoldersquota: number
-}
-
-export interface PCloudFile {
-  id: number
-  parentfolderid: number
-  name: string
-  isfolder: boolean
-  created: string
+  created: string // e.g., "Sat, 22 Sep 2012 10:23:41 +0000"
   modified: string
+  isfolder: boolean
+  parentfolderid: number
+  icon: string
+  ismine: boolean
+  isshared: boolean
+  isdeleted: boolean
+  thumbready?: boolean
+  path: string
+}
+
+export interface PCloudFileMetadata extends PCloudBaseMetadata {
+  isfolder: false // Discriminator
+  fileid: number
   size: number
   contenttype: string
   hash: string
-  icon: string
-  fileid: number
+  category: PCloudFileCategory // pCloud uses category integers (0-6)
+  
+  // Video file optional fields
+  width?: number          // Width in pixels
+  height?: number         // Height in pixels
+  duration?: string       // Duration in seconds (as string)
+  fps?: string            // Frames per second (as string)
+  videocodec?: string     // Video codec (e.g., 'h264')
+  audiocodec?: string     // Audio codec (e.g., 'aac')
+  videobitrate?: number   // Video bitrate in kbps
+  audiobitrate?: number   // Audio bitrate in kbps
+  audiosamplerate?: number // Audio sample rate in Hz
+  rotate?: number         // Rotation degrees (0, 90, 180, 270)
+  
+  // Audio file optional fields
+  artist?: string         // Artist name
+  album?: string          // Album name
+  title?: string          // Track title
+  genre?: string          // Music genre
+  trackno?: string        // Track number
+}
+
+export interface PCloudFolderMetadata extends PCloudBaseMetadata {
+  isfolder: true // Discriminator
   folderid: number
-  thumb?: boolean
-  ismine: boolean
-  isshared: boolean
-  issynced: boolean
 }
 
-export interface PCloudFolder extends PCloudFile {
-  isfolder: true
+export type PCloudItemMetadata = PCloudFileMetadata | PCloudFolderMetadata
+
+// When querying listfolder, the requested folder contains a 'contents' array
+export interface PCloudFolderContents extends PCloudFolderMetadata {
+  contents: PCloudItemMetadata[]
   filecount: number
-  childcount: number
 }
 
-export interface PCloudListResponse extends PCloudApiResponse<PCloudListResponse> {
-  metadata: {
-    name: string
-    ismine: boolean
-    isshared: boolean
-    canwrite: boolean
-    cancreate: boolean
-    isdeleted: boolean
-    isinherited: boolean
-    path: string
-    folderid: number
-    parentfolderid: number
-  }
-  contents: PCloudFile[]
-}
+// Type aliases for convenience
+export type PCloudFile = PCloudFileMetadata
+export type PCloudFolder = PCloudFolderMetadata
+export type PCloudListResponse = PCloudListFolderResponse
 
-export interface PCloudAuthResponse extends PCloudApiResponse<PCloudAuthResponse> {
-  auth: string
-  userid: number
-  location: number
-}
-
-export interface PCloudTokenResponse extends PCloudApiResponse<PCloudTokenResponse> {
+// 3. Specific API Responses (Flattened)
+export interface PCloudTokenResponse extends PCloudBaseResponse {
   access_token: string
   token_type: string
-  expires_in: number
-  refresh_token?: string
   uid: number
-  locationid: number
-  hostname?: string
-  business?: number
-  email?: string
 }
 
-// Response type for delete operations
-export interface PCloudDeleteResponse extends PCloudApiResponse<PCloudDeleteResponse> {
-  metadata?: {
-    deleted?: number
-    failed?: number
-  }
+export interface PCloudUserInfoResponse extends PCloudBaseResponse {
+  userid: number
+  email: string
+  emailverified: boolean
+  quota: number
+  premium: boolean
+  language: string
+  // ... other properties exist directly at the root
 }
 
-// Helper functions
-export function isPCloudSuccess(
-  response: PCloudResponse,
-): response is PCloudSuccessResponse {
-  return response.result === PCloudResultCode.SUCCESS
+// User Info interface (used by userinfo endpoint)
+export interface PCloudUserInfo extends PCloudBaseResponse {
+  uid: number
+  email: string
+  emailverified: boolean
+  registered: string // Date string
+  premium: boolean
+  premiumexpires: string // Date string
+  quota: number
+  usedquota: number
+  language: string
 }
 
-export function isPCloudError(
-  response: PCloudResponse,
-): response is PCloudErrorResponse {
-  return response.result !== PCloudResultCode.SUCCESS
+export interface PCloudListFolderResponse extends PCloudBaseResponse {
+  metadata: PCloudFolderContents
 }
 
-export function getPCloudErrorMessage(
-  response: PCloudResponse,
-): string | undefined {
-  if (isPCloudError(response)) {
-    return response.error || `pCloud API error: ${response.result}`
+export interface PCloudCreateFolderResponse extends PCloudBaseResponse {
+  metadata: PCloudFolderMetadata
+}
+
+export interface PCloudRenameFolderResponse extends PCloudBaseResponse {
+  metadata: PCloudFolderMetadata
+}
+
+export interface PCloudDeleteFolderRecursiveResponse extends PCloudBaseResponse {
+  deletedfiles: number
+  deletedfolders: number
+}
+
+export interface PCloudUploadResponse extends PCloudBaseResponse {
+  fileids: number[] // Array of uploaded file IDs
+  metadata: PCloudFileMetadata[] // Array of metadata objects for uploaded files
+  checksums: string[] // Array of checksums for uploaded files
+}
+
+export interface PCloudUploadUrlResponse extends PCloudBaseResponse {
+  uploadlinkid: number
+  link: string
+  mail: string
+  code: string
+}
+
+export interface PCloudDeleteFileResponse extends PCloudBaseResponse {
+  metadata: PCloudFileMetadata & { isdeleted: true }
+}
+
+export interface PCloudFileLinkResponse extends PCloudBaseResponse {
+  hosts: string[]
+  path: string
+  expires: string
+}
+
+export interface PCloudCopyFileResponse extends PCloudBaseResponse {
+  metadata: PCloudFileMetadata
+}
+
+export interface PCloudRenameFileResponse extends PCloudBaseResponse {
+  metadata: PCloudFileMetadata
+}
+
+// 4. Type Guards and Helpers
+export function isPCloudSuccess(response: PCloudBaseResponse): boolean {
+  return response.result === PCloudResultCode.SUCCESS // Assuming SUCCESS is 0
+}
+
+export function getPCloudErrorMessage(response: PCloudBaseResponse): string | undefined {
+  if (!isPCloudSuccess(response)) {
+    return response.error || `pCloud API error code: ${response.result}`
   }
   return undefined
-}
-
-export function createPCloudError(
-  error: string,
-  code: PCloudErrorResultCode = PCloudResultCode.ERROR,
-): PCloudErrorResponse {
-  return {
-    result: code,
-    error,
-  }
-}
-
-export function createPCloudSuccess<T>(
-  data?: T,
-  metadata?: Record<string, any>,
-): PCloudSuccessResponse<T> {
-  return {
-    result: PCloudResultCode.SUCCESS,
-    data,
-    metadata,
-  }
-}
-
-// Type guard for handling API responses
-export function handlePCloudResponse<T>(
-  response: PCloudResponse<T>,
-  successCallback: (data: T, metadata?: Record<string, any>) => void,
-  errorCallback: (
-    error: string,
-    code: number,
-    metadata?: Record<string, any>,
-  ) => void,
-): void {
-  if (isPCloudSuccess(response)) {
-    successCallback(response.data as T, response.metadata)
-  }
-  else {
-    errorCallback(response.error, response.result, response.metadata)
-  }
 }

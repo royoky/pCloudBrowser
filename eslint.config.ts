@@ -7,6 +7,10 @@ export default withNuxt(
       'style/max-len': ['warn', 100],
       'style/quotes': ['error', 'single', { avoidEscape: true }],
       'vue/component-definition-name-casing': ['error', 'PascalCase'],
+      'no-console': ['error', { allow: ['info', 'warn', 'error'] }],
     },
   }),
+  {
+    ignores: ['**/*.md'],
+  },
 )

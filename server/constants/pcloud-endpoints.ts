@@ -15,13 +15,15 @@ export const PCLOUD_API_ENDPOINTS = {
   FILES: {
     LIST: '/listfolder',
     CREATE_FOLDER: '/createfolder',
-    DELETE: '/deletefile',
     COPY: '/copyfile',
     MOVE: '/renamefile',
     UPLOAD: '/uploadfile',
+    UPLOAD_LINK: '/createuploadlink', // For generating signed upload URLs
     DOWNLOAD: '/getfilelink',
     FILE_PUBLISH: '/getfilepublink',
     FILE_UNPUBLISH: '/unpublishfile',
+    DELETE_FOLDER: '/deletefolderrecursive',
+    DELETE_FILE: '/deletefile',
   },
   USERS: {
     INFO: '/userinfo',
