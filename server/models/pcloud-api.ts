@@ -13,6 +13,19 @@ export interface PCloudBaseResponse {
 }
 
 // 2. Metadata Structures (Discriminated Union)
+// Define pCloud file categories as const for type safety
+export const PCLOUD_FILE_CATEGORIES = {
+  Uncategorized: 0,
+  Image: 1,
+  Video: 2,
+  Audio: 3,
+  Document: 4,
+  Archive: 5
+} as const
+
+// Extract category type from the const object
+export type PCloudFileCategory = typeof PCLOUD_FILE_CATEGORIES[keyof typeof PCLOUD_FILE_CATEGORIES]
+
 export interface PCloudBaseMetadata {
   name: string
   created: string // e.g., "Sat, 22 Sep 2012 10:23:41 +0000"
@@ -33,7 +46,26 @@ export interface PCloudFileMetadata extends PCloudBaseMetadata {
   size: number
   contenttype: string
   hash: string
-  category: number // pCloud uses category integers (0-6)
+  category: PCloudFileCategory // pCloud uses category integers (0-6)
+  
+  // Video file optional fields
+  width?: number          // Width in pixels
+  height?: number         // Height in pixels
+  duration?: string       // Duration in seconds (as string)
+  fps?: string            // Frames per second (as string)
+  videocodec?: string     // Video codec (e.g., 'h264')
+  audiocodec?: string     // Audio codec (e.g., 'aac')
+  videobitrate?: number   // Video bitrate in kbps
+  audiobitrate?: number   // Audio bitrate in kbps
+  audiosamplerate?: number // Audio sample rate in Hz
+  rotate?: number         // Rotation degrees (0, 90, 180, 270)
+  
+  // Audio file optional fields
+  artist?: string         // Artist name
+  album?: string          // Album name
+  title?: string          // Track title
+  genre?: string          // Music genre
+  trackno?: string        // Track number
 }
 
 export interface PCloudFolderMetadata extends PCloudBaseMetadata {
