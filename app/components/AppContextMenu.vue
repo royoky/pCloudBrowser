@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import type { ContextMenuItem } from '~~/app/models/context-menu'
+
 defineProps<{
-  menuItems: { text: string | number, value: number | string }[]
+  menuItems: ContextMenuItem[]
 }>()
 
 defineEmits<{
-  onMenuClicked: [value: number | string]
+  onMenuClicked: [action: ContextMenuItem['value']]
 }>()
 
 const isOpen = defineModel({ type: Boolean })

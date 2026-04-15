@@ -9,7 +9,7 @@ import type {
 import { z } from 'zod'
 import { PCLOUD_API_ENDPOINTS } from '~~/server/constants/pcloud-endpoints'
 import {
-  mapPCloudFolderToCloudFolder, // Suggestion: create this mapper for single folders
+  mapPCloudFolderToCloudFolder,
   mapPCloudListToCloudFolder,
 } from '~~/server/mappers/pcloud-mapper'
 import { getPCloudErrorMessage, isPCloudSuccess } from '~~/server/models/pcloud-api'
@@ -74,6 +74,7 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     case 'POST': {
+      // Create new folder
       const body = await readValidatedBody(event, folderBodySchema.parse)
       const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.CREATE_FOLDER}`
       const response = await $fetch<PCloudCreateFolderResponse>(url, {
@@ -88,7 +89,8 @@ export default defineEventHandler(async (event: H3Event) => {
       return mapPCloudFolderToCloudFolder(response.metadata)
     }
 
-    case 'PATCH': {
+    case 'PUT': {
+      // Move/Rename folder
       const body = await readValidatedBody(event, folderBodySchema.parse)
       const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.MOVE}`
       const response = await $fetch<PCloudRenameFolderResponse>(url, {

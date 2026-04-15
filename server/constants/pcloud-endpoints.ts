@@ -24,6 +24,7 @@ export const PCLOUD_API_ENDPOINTS = {
     FILE_UNPUBLISH: '/unpublishfile',
     DELETE_FOLDER: '/deletefolderrecursive',
     DELETE_FILE: '/deletefile',
+    COPY_FOLDER: '/copyfolder',
   },
   USERS: {
     INFO: '/userinfo',

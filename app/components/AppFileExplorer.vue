@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import type { ContextMenuAction } from '~~/app/models/context-menu'
 import type { CloudFile, MiniCloudFolder } from '~~/shared/models/cloud-item'
+import { FILE_MENU_ITEMS, FOLDER_MENU_ITEMS } from '~~/app/models/context-menu'
 
 const { useListFolder } = useFolder()
+const { handleOperation } = createContextMenuOperations()
 
 const folderId = ref<string>('0')
 
@@ -57,19 +60,7 @@ function onParentFolderClick() {
 const contextMenu = useTemplateRef('contextMenu')
 const isContextMenuOpen = ref<boolean>(false)
 
-const folderMenuItems = [
-  { value: 1, text: 'Delete folder' },
-  { value: 2, text: 'Copy folder' },
-  { value: 3, text: 'Move folder' },
-]
-
-const fileMenuItems = [
-  { value: 4, text: 'Delete file' },
-  { value: 5, text: 'Copy file' },
-  { value: 6, text: 'Move file' },
-]
-
-const menuItems = ref<{ text: string | number, value: number | string }[]>([])
+const menuItems = ref<{ text: string, value: ContextMenuAction, disabled?: boolean }[]>([])
 
 const selectedId = ref<string>()
 
@@ -77,22 +68,26 @@ function onContextMenu(id: string, isFolder: boolean) {
   isContextMenuOpen.value = false
   selectedId.value = id
   nextTick(() => {
-    menuItems.value = isFolder ? folderMenuItems : fileMenuItems
+    menuItems.value = isFolder ? FOLDER_MENU_ITEMS : FILE_MENU_ITEMS
     contextMenu.value?.show()
   })
 }
 
-async function onMenuClicked(value: number | string) {
-  switch (value) {
-    case 1:
-      try {
-        const res = await $fetch<{ success: boolean, deletedCount: number }>(`/api/pcloud/folders/${selectedId.value}`, { method: 'delete' })
-        if (res.success)
-          refresh()
-      }
-      catch (error) {
-        console.error(error)
-      }
+async function onMenuClicked(action: ContextMenuAction) {
+  if (!selectedId.value) {
+    console.warn('No item selected for context menu operation')
+    return
+  }
+
+  const result = await handleOperation(action, selectedId.value)
+
+  if (result.success) {
+    refresh()
+    // TODO: Show success notification to user
+  }
+  else {
+    // TODO: Show error notification to user
+    console.error(result.message || 'Operation failed')
   }
 }
 </script>
