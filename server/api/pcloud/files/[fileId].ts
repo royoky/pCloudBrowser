@@ -18,12 +18,13 @@ const downloadParamsSchema = z.object({
 })
 
 const copyBodySchema = z.object({
-  tofolderid: z.number(),
-  toname: z.string().optional(),
+  targetFolderId: z.string(),
+  newName: z.string().optional(),
 })
 
 const renameBodySchema = z.object({
-  toname: z.string(),
+  newName: z.string().optional(),
+  targetFolderId: z.string().optional(),
 })
 
 function getHttpStatusCode(pcloudResult: number): number {
@@ -138,8 +139,14 @@ export default defineEventHandler(async (event: H3Event) => {
     case 'PATCH': {
       const body = await readValidatedBody(event, renameBodySchema.parse)
       const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.MOVE}`
+      // Map generic names to pCloud-specific names
+      const params = {
+        ...baseParams,
+        ...(body.newName && { toname: body.newName }),
+        ...(body.targetFolderId && { tofolderid: Number(body.targetFolderId) }),
+      }
       const response = await $fetch<PCloudRenameFileResponse>(url, {
-        params: { ...baseParams, ...body },
+        params,
         headers,
       })
 
@@ -152,8 +159,14 @@ export default defineEventHandler(async (event: H3Event) => {
     case 'POST': {
       const body = await readValidatedBody(event, copyBodySchema.parse)
       const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.COPY}`
+      // Map generic names to pCloud-specific names
+      const params = {
+        ...baseParams,
+        tofolderid: Number(body.targetFolderId),
+        ...(body.newName && { toname: body.newName }),
+      }
       const response = await $fetch<PCloudCopyFileResponse>(url, {
-        params: { ...baseParams, ...body },
+        params,
         headers,
       })
 

@@ -1,35 +1,45 @@
 // server/api/pcloud/folders/[folderId]/copy.post.ts
 import type { H3Event } from 'h3'
-import type { PCloudRenameFolderResponse } from '~~/server/models/pcloud-api'
+import type { PCloudCopyFolderResponse } from '~~/server/models/pcloud-api'
 import { z } from 'zod'
 import { PCLOUD_API_ENDPOINTS } from '~~/server/constants/pcloud-endpoints'
 import { mapPCloudFolderToCloudFolder } from '~~/server/mappers/pcloud-mapper'
 import { getPCloudErrorMessage, isPCloudSuccess } from '~~/server/models/pcloud-api'
 
+// pCloud copyfolder API: https://docs.pcloud.com/methods/folder/copyfolder.html
 const copyFolderBodySchema = z.object({
-  tofolderid: z.number(),
-  toname: z.string().optional(),
-  recursive: z.coerce.boolean().optional().default(true),
+  targetFolderId: z.string().describe('Destination folder ID'),
+  newName: z.string().optional().describe('New name for the copied folder'),
+  allowOverwrite: z.coerce.boolean().optional().default(false).describe('Allow overwriting existing files'),
+  skipExisting: z.coerce.boolean().optional().default(false).describe('Skip existing files'),
+  copyContentOnly: z.coerce.boolean().optional().default(false).describe('Copy content only (no folder structure)'),
 })
 
 function getHttpStatusCode(pcloudResult: number): number {
   switch (pcloudResult) {
-    case 1000:
-    case 2000:
+    case 1000: // Log in required
+    case 2000: // Log in failed
       return 401
-    case 2001:
+    case 2001: // Invalid file/folder name
       return 400
-    case 2003:
+    case 2003: // Access denied
       return 403
-    case 2004:
+    case 2004: // Already exists
       return 409
-    case 2005:
+    case 2005: // Directory does not exist
       return 404
-    case 2008:
+    case 2008: // User over quota
       return 402
-    case 2041:
+    case 2023: // Shared folder conflict
+      return 403
+    case 2206: // Can't copy folder into itself
+    case 2207: // Can't copy folder to subfolder of itself
+      return 400
+    case 2208: // Target folder does not exist
+      return 404
+    case 2041: // Connection broken
       return 503
-    case 4000:
+    case 4000: // Too many login tries
       return 429
     default:
       return 500
@@ -58,13 +68,28 @@ export default defineEventHandler(async (event: H3Event) => {
     throw createError({ statusCode: 400, message: 'Folder ID must be a valid number' })
   }
 
-  const body = await readValidatedBody(event, copyFolderBodySchema.parse)
-  const baseParams = { folderid: folderIdNum }
-  const headers = { authorization: `Bearer ${token}` }
+  const { targetFolderId, newName, allowOverwrite, skipExisting, copyContentOnly } = await readValidatedBody(
+    event,
+    copyFolderBodySchema.parse,
+  )
 
   const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.COPY_FOLDER}`
-  const response = await $fetch<PCloudRenameFolderResponse>(url, {
-    params: { ...baseParams, tofolderid: body.tofolderid, toname: body.toname },
+  const headers = { authorization: `Bearer ${token}` }
+
+  // pCloud expects parameters as query params for copyfolder
+  // Map generic names to pCloud-specific names
+  const params = {
+    folderid: folderIdNum,
+    tofolderid: Number(targetFolderId),
+    ...(newName && { toname: newName }),
+    noover: allowOverwrite ? 0 : 1, // pCloud: noover=1 means skip if exists
+    skipexisting: skipExisting ? 1 : undefined,
+    copycontentonly: copyContentOnly ? 1 : undefined,
+  }
+
+  const response = await $fetch<PCloudCopyFolderResponse>(url, {
+    method: 'GET', // pCloud uses GET for copyfolder
+    params,
     headers,
   })
 

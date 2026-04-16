@@ -4,7 +4,7 @@ import type { CloudFile, MiniCloudFolder } from '~~/shared/models/cloud-item'
 import { FILE_MENU_ITEMS, FOLDER_MENU_ITEMS } from '~~/app/models/context-menu'
 
 const { useListFolder } = useFolder()
-const { handleOperation } = createContextMenuOperations()
+const { handleOperation } = useContextMenuOperations()
 
 const folderId = ref<string>('0')
 
@@ -79,7 +79,13 @@ async function onMenuClicked(action: ContextMenuAction) {
     return
   }
 
-  const result = await handleOperation(action, selectedId.value)
+  // Use current folder as destination for copy/move operations
+  const options = {
+    targetFolderId: folderId.value,
+    allowOverwrite: false, // Prevent overwriting by default
+  }
+
+  const result = await handleOperation(action, selectedId.value, options)
 
   if (result.success) {
     refresh()
@@ -93,7 +99,7 @@ async function onMenuClicked(action: ContextMenuAction) {
 </script>
 
 <template>
-  <div class="app-file-explorer d-flex flex-column">
+  <div class="d-flex flex-column w-100">
     <AppBreadcrumbs :items="breadcrumbsItems" />
     <AppContextMenu
       ref="contextMenu"
@@ -112,6 +118,6 @@ async function onMenuClicked(action: ContextMenuAction) {
         @on-context-menu="(folderId, isFolder) => onContextMenu(folderId, isFolder)"
       />
     </AppContextMenu>
+    <AppFileUpload @files-uploaded="refresh" />
   </div>
-  <AppFileUpload @files-uploaded="refresh" />
 </template>

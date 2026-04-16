@@ -34,6 +34,6 @@ export const FOLDER_MENU_ITEMS: ContextMenuItem[] = [
 
 export const FILE_MENU_ITEMS: ContextMenuItem[] = [
   { value: 'DELETE_FILE', text: 'Delete file' },
-  { value: 'COPY_FILE', text: 'Copy file', disabled: true },
-  { value: 'MOVE_FILE', text: 'Move file', disabled: true },
+  { value: 'COPY_FILE', text: 'Copy file' },
+  { value: 'MOVE_FILE', text: 'Move file' },
 ]

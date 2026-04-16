@@ -133,6 +133,15 @@ export interface PCloudDeleteFolderRecursiveResponse extends PCloudBaseResponse 
   deletedfolders: number
 }
 
+// Copy operation responses
+export interface PCloudCopyFileResponse extends PCloudBaseResponse {
+  metadata: PCloudFileMetadata
+}
+
+export interface PCloudCopyFolderResponse extends PCloudBaseResponse {
+  metadata: PCloudFolderMetadata
+}
+
 export interface PCloudUploadResponse extends PCloudBaseResponse {
   fileids: number[] // Array of uploaded file IDs
   metadata: PCloudFileMetadata[] // Array of metadata objects for uploaded files
@@ -154,10 +163,6 @@ export interface PCloudFileLinkResponse extends PCloudBaseResponse {
   hosts: string[]
   path: string
   expires: string
-}
-
-export interface PCloudCopyFileResponse extends PCloudBaseResponse {
-  metadata: PCloudFileMetadata
 }
 
 export interface PCloudRenameFileResponse extends PCloudBaseResponse {
