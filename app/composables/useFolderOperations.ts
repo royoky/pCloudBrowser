@@ -17,6 +17,32 @@ export function useFolderOperations() {
     return defaultMessage
   }
 
+  const createFolder = async (
+    parentFolderId: string,
+    folderName: string,
+  ): Promise<ContextMenuOperationResult> => {
+    try {
+      const response = await $fetch<any>(`/api/pcloud/folders/${parentFolderId}`, {
+        method: 'POST',
+        body: {
+          newName: folderName,
+        },
+      })
+
+      if (response.success) {
+        return {
+          success: true,
+          message: 'Folder created successfully',
+        }
+      }
+      throw new Error('Folder creation failed')
+    }
+    catch (error) {
+      console.error('Folder creation error:', error)
+      throw new Error(getErrorMessage(error, 'Failed to create folder'))
+    }
+  }
+
   const deleteFolder = async (folderId: string): Promise<ContextMenuOperationResult> => {
     try {
       const response = await $fetch<{ success: boolean, deletedCount: number }>(
@@ -93,6 +119,7 @@ export function useFolderOperations() {
   }
 
   return {
+    createFolder,
     deleteFolder,
     copyFolder,
     moveFolder,

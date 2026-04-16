@@ -80,8 +80,10 @@ export default defineEventHandler(async (event: H3Event) => {
       // Create new folder
       const body = await readValidatedBody(event, folderBodySchema.parse)
       const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.CREATE_FOLDER}`
+      // Map generic name to pCloud parameter
+      const params = { ...baseParams, name: body.newName }
       const response = await $fetch<PCloudCreateFolderResponse>(url, {
-        params: { ...baseParams, name: body.name },
+        params,
         headers,
       })
 

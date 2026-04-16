@@ -43,7 +43,7 @@ export function useFileOperations() {
     options: FileOperationOptions,
   ): Promise<ContextMenuOperationResult> => {
     try {
-      const { targetFolderId, newName, preventOverwrite } = options
+      const { targetFolderId, newName, allowOverwrite } = options
 
       await $fetch<any>(`/api/pcloud/files/${fileId}/copy`, {
         method: 'POST',

@@ -5,8 +5,13 @@ import { FILE_MENU_ITEMS, FOLDER_MENU_ITEMS } from '~~/app/models/context-menu'
 
 const { useListFolder } = useFolder()
 const { handleOperation } = useContextMenuOperations()
+const { createFolder } = useFolderOperations()
 
 const folderId = ref<string>('0')
+
+// New folder dialog
+const isNewFolderDialogOpen = ref<boolean>(false)
+const newFolderName = ref<string>('')
 
 const breadcrumbsItems = ref<string[]>(['All Files'])
 
@@ -57,6 +62,24 @@ function onParentFolderClick() {
   }
 }
 
+async function onCreateFolder() {
+  if (!newFolderName.value) {
+    console.warn('Folder name is required')
+    return
+  }
+
+  const result = await createFolder(folderId.value, newFolderName.value)
+
+  if (result.success) {
+    newFolderName.value = ''
+    isNewFolderDialogOpen.value = false
+    refresh()
+  }
+  else {
+    console.error(result.message || 'Failed to create folder')
+  }
+}
+
 const contextMenu = useTemplateRef('contextMenu')
 const isContextMenuOpen = ref<boolean>(false)
 
@@ -100,6 +123,16 @@ async function onMenuClicked(action: ContextMenuAction) {
 
 <template>
   <div class="d-flex flex-column w-100">
+    <div class="d-flex justify-end mb-4">
+      <v-btn
+        color="primary"
+        prepend-icon="mdi-folder-plus"
+        @click="isNewFolderDialogOpen = true"
+      >
+        New Folder
+      </v-btn>
+    </div>
+
     <AppBreadcrumbs :items="breadcrumbsItems" />
     <AppContextMenu
       ref="contextMenu"
@@ -119,5 +152,28 @@ async function onMenuClicked(action: ContextMenuAction) {
       />
     </AppContextMenu>
     <AppFileUpload @files-uploaded="refresh" />
+
+    <v-dialog v-model="isNewFolderDialogOpen" max-width="500px">
+      <v-card>
+        <v-card-title>Create New Folder</v-card-title>
+        <v-card-text>
+          <v-text-field
+            v-model="newFolderName"
+            label="Folder Name"
+            autofocus
+            @keyup.enter="onCreateFolder"
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="isNewFolderDialogOpen = false">
+            Cancel
+          </v-btn>
+          <v-btn color="primary" @click="onCreateFolder">
+            Create
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
