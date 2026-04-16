@@ -1,3 +1,5 @@
+import { ssrClientHintsConfiguration } from 'virtual:vuetify-ssr-client-hints-configuration'
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
 
@@ -8,9 +10,14 @@ export default defineNuxtConfig({
     '@vueuse/nuxt',
     ['vuetify-nuxt-module', {
       moduleOptions: {
-        prefersColorScheme: true,
-        prefersColorSchemeOptions: {
-          cookieName: 'vuetify-theme',
+        labComponents: ['VFileUpload'],
+        ssrClientHintsConfiguration: {
+          reloadOnFirstRequest: true,
+          viewportSize: true,
+          prefersColorScheme: true,
+          prefersColorSchemeOptions: {
+            useBrowserThemeOnly: false,
+          },
         },
       },
       vuetifyOptions: './vuetify.config.ts',

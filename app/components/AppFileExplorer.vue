@@ -124,13 +124,13 @@ async function onMenuClicked(action: ContextMenuAction) {
 <template>
   <div class="d-flex flex-column w-100">
     <div class="d-flex justify-end mb-4">
-      <v-btn
+      <VBtn
         color="primary"
         prepend-icon="mdi-folder-plus"
         @click="isNewFolderDialogOpen = true"
       >
         New Folder
-      </v-btn>
+      </VBtn>
     </div>
 
     <AppBreadcrumbs :items="breadcrumbsItems" />
@@ -153,27 +153,27 @@ async function onMenuClicked(action: ContextMenuAction) {
     </AppContextMenu>
     <AppFileUpload @files-uploaded="refresh" />
 
-    <v-dialog v-model="isNewFolderDialogOpen" max-width="500px">
-      <v-card>
-        <v-card-title>Create New Folder</v-card-title>
-        <v-card-text>
-          <v-text-field
+    <VDialog v-model="isNewFolderDialogOpen" max-width="500px">
+      <VCard>
+        <VCardTitle>Create New Folder</VCardTitle>
+        <VCardText>
+          <VTextField
             v-model="newFolderName"
             label="Folder Name"
             autofocus
             @keyup.enter="onCreateFolder"
           />
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="isNewFolderDialogOpen = false">
+        </VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn variant="text" @click="isNewFolderDialogOpen = false">
             Cancel
-          </v-btn>
-          <v-btn color="primary" @click="onCreateFolder">
+          </VBtn>
+          <VBtn color="primary" @click="onCreateFolder">
             Create
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
   </div>
 </template>

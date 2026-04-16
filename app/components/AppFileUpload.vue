@@ -20,49 +20,47 @@ async function uploadFiles() {
     for (const file of files.value) {
       uploadProgress.value = 0
 
-      const uploadResponse = await new Promise<UploadResponse>(
-        (resolve, reject) => {
-          const xhr = new XMLHttpRequest()
-          xhr.open('POST', '/api/pcloud/files/upload', true)
+      const uploadResponse = await new Promise<UploadResponse>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open('POST', '/api/pcloud/files/upload', true)
 
-          // Track upload progress
-          xhr.upload.onprogress = (progressEvent: ProgressEvent) => {
-            if (progressEvent.total) {
-              uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+        // Track upload progress
+        xhr.upload.onprogress = (progressEvent: ProgressEvent) => {
+          if (progressEvent.total) {
+            uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+          }
+        }
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const response = JSON.parse(xhr.responseText)
+              resolve(response)
+            }
+            catch (error) {
+              console.error('Failed to parse JSON response:', error)
+              reject(new Error(`Invalid JSON response: ${xhr.responseText}`))
             }
           }
-
-          xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              try {
-                const response = JSON.parse(xhr.responseText)
-                resolve(response)
-              }
-              catch (error) {
-                console.error('Failed to parse JSON response:', error)
-                reject(new Error(`Invalid JSON response: ${xhr.responseText}`))
-              }
-            }
-            else {
-              reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.responseText}`))
-            }
+          else {
+            reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.responseText}`))
           }
+        }
 
-          xhr.onerror = () => {
-            reject(new Error('Upload failed'))
-          }
+        xhr.onerror = () => {
+          reject(new Error('Upload failed'))
+        }
 
-          // Create & send FormData for the upload
-          const formData = new FormData()
-          formData.append('folderId', currentFolderId.value.toString())
-          formData.append('filename', file.name)
-          formData.append('contentType', file.type)
-          formData.append('nopartial', 'true')
-          formData.append('file', file)
+        // Create & send FormData for the upload
+        const formData = new FormData()
+        formData.append('folderId', currentFolderId.value.toString())
+        formData.append('filename', file.name)
+        formData.append('contentType', file.type)
+        formData.append('nopartial', 'true')
+        formData.append('file', file)
 
-          xhr.send(formData)
-        },
-      )
+        xhr.send(formData)
+      })
 
       if (!uploadResponse || !uploadResponse.success) {
         throw new Error(`Failed to upload ${file.name}`)
@@ -86,31 +84,40 @@ async function uploadFiles() {
 </script>
 
 <template>
-  <v-container>
-    <v-file-upload v-model="files" title="Drag and Drop to pCloud" multiple clearable show-size />
+  <ClientOnly>
+    <VContainer>
+      <VFileUpload
+        v-model="files"
+        density="compact"
+        title="Drag and Drop to pCloud"
+        multiple
+        clearable
+        show-size
+      />
 
-    <!-- Upload progress indicator -->
-    <v-progress-linear
-      v-if="isUploading"
-      v-model="uploadProgress"
-      color="primary"
-      height="6"
-      class="mt-2"
-      striped
-    >
-      <template #default="{ value }">
-        <strong>{{ Math.ceil(value) }}%</strong>
-      </template>
-    </v-progress-linear>
+      <!-- Upload progress indicator -->
+      <VProgressLinear
+        v-if="isUploading"
+        v-model="uploadProgress"
+        color="primary"
+        height="6"
+        class="mt-2"
+        striped
+      >
+        <template #default="{ value }">
+          <strong>{{ Math.ceil(value) }}%</strong>
+        </template>
+      </VProgressLinear>
 
-    <v-btn
-      color="primary"
-      class="mt-4"
-      :disabled="files.length === 0 || isUploading"
-      :loading="isUploading"
-      @click="uploadFiles"
-    >
-      Upload to Cloud
-    </v-btn>
-  </v-container>
+      <VBtn
+        color="primary"
+        class="mt-4"
+        :disabled="files.length === 0 || isUploading"
+        :loading="isUploading"
+        @click="uploadFiles"
+      >
+        Upload to Cloud
+      </VBtn>
+    </VContainer>
+  </ClientOnly>
 </template>
