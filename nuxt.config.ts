@@ -1,5 +1,3 @@
-import { ssrClientHintsConfiguration } from 'virtual:vuetify-ssr-client-hints-configuration'
-
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
 
@@ -8,20 +6,28 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
     '@vueuse/nuxt',
-    ['vuetify-nuxt-module', {
-      moduleOptions: {
-        labComponents: ['VFileUpload'],
-        ssrClientHintsConfiguration: {
-          reloadOnFirstRequest: true,
-          viewportSize: true,
-          prefersColorScheme: true,
-          prefersColorSchemeOptions: {
-            useBrowserThemeOnly: false,
+    [
+      'vuetify-nuxt-module',
+      {
+        moduleOptions: {
+          labComponents: [
+            'VFileUpload',
+            'VFileUploadDropzone',
+            'VFileUploadList',
+            'VFileUploadItem',
+          ],
+          ssrClientHintsConfiguration: {
+            reloadOnFirstRequest: true,
+            viewportSize: true,
+            prefersColorScheme: true,
+            prefersColorSchemeOptions: {
+              useBrowserThemeOnly: false,
+            },
           },
         },
+        vuetifyOptions: './vuetify.config.ts',
       },
-      vuetifyOptions: './vuetify.config.ts',
-    }],
+    ],
     'nuxt-auth-utils',
   ],
 

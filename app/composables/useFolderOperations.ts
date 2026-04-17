@@ -1,4 +1,5 @@
 import type { ContextMenuOperationResult } from '~~/app/models/context-menu'
+import type { CloudFolder } from '~~/shared/models/cloud-item'
 
 export interface FolderOperationOptions {
   targetFolderId?: string
@@ -22,14 +23,14 @@ export function useFolderOperations() {
     folderName: string,
   ): Promise<ContextMenuOperationResult> => {
     try {
-      const response = await $fetch<any>(`/api/pcloud/folders/${parentFolderId}`, {
+      const folder = await $fetch<CloudFolder>(`/api/pcloud/folders/${parentFolderId}`, {
         method: 'POST',
         body: {
           newName: folderName,
         },
       })
 
-      if (response.success) {
+      if (folder.id) {
         return {
           success: true,
           message: 'Folder created successfully',
@@ -72,7 +73,7 @@ export function useFolderOperations() {
     try {
       const { targetFolderId, newName, allowOverwrite } = options
 
-      await $fetch<any>(`/api/pcloud/folders/${folderId}/copy`, {
+      const folder = await $fetch<CloudFolder>(`/api/pcloud/folders/${folderId}/copy`, {
         method: 'POST',
         body: {
           targetFolderId,
@@ -81,10 +82,13 @@ export function useFolderOperations() {
         },
       })
 
-      return {
-        success: true,
-        message: 'Folder copied successfully',
+      if (folder.id) {
+        return {
+          success: true,
+          message: 'Folder copied successfully',
+        }
       }
+      throw new Error('Folder copy failed')
     }
     catch (error) {
       console.error('Folder copy error:', error)
@@ -99,7 +103,7 @@ export function useFolderOperations() {
     try {
       const { targetFolderId, newName } = options
 
-      await $fetch<any>(`/api/pcloud/folders/${folderId}`, {
+      await $fetch<CloudFolder>(`/api/pcloud/folders/${folderId}`, {
         method: 'PUT',
         body: {
           targetFolderId,

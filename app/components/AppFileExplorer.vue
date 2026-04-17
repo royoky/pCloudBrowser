@@ -1,77 +1,27 @@
 <script setup lang="ts">
 import type { ContextMenuAction } from '~~/app/models/context-menu'
-import type { CloudFile, MiniCloudFolder } from '~~/shared/models/cloud-item'
 import { FILE_MENU_ITEMS, FOLDER_MENU_ITEMS } from '~~/app/models/context-menu'
 
-const { useListFolder } = useFolder()
-const { handleOperation } = useContextMenuOperations()
 const { createFolder } = useFolderOperations()
-
-const folderId = ref<string>('0')
+const { handleOperation } = useContextMenuOperations()
+const {
+  folderId,
+  breadcrumbsItems,
+  folders,
+  files,
+  isTopLevel,
+  navigateTo,
+  navigateUp,
+  navigateToFile,
+  refresh,
+} = useFolderBrowser()
 
 // New folder dialog
 const isNewFolderDialogOpen = ref<boolean>(false)
-const newFolderName = ref<string>('')
 
-const breadcrumbsItems = ref<string[]>(['All Files'])
-
-const params = { recursive: true }
-
-const { data, refresh } = await useListFolder(folderId, params)
-
-const folders = computed<MiniCloudFolder[]>(
-  () => data.value?.entries.filter((item): item is MiniCloudFolder => item.type === 'folder') ?? [],
-)
-const files = computed<CloudFile[]>(
-  () => data.value?.entries?.filter((item): item is CloudFile => item.type === 'file') ?? [],
-)
-
-const parentFolderId = computed<string | null>(() => {
-  if (folderId.value === '0')
-    return null
-  const parent = data.value?.parentId
-  return parent ?? null
-})
-
-const isTopLEvel = computed((): boolean => parentFolderId.value === null)
-
-function onFolderClick(clickedId: string | null) {
-  if (clickedId) {
-    folderId.value = clickedId
-    const folderName = folders.value.find(folder => folder.id === clickedId)?.name
-    breadcrumbsItems.value.push(folderName ?? clickedId)
-  }
-}
-
-async function onFileClick(fileId: string) {
-  try {
-    const url = `/api/pcloud/files/${fileId}?proxy=true`
-
-    globalThis.location.href = url
-  }
-  catch (error) {
-    console.error('File download failed:', error)
-    // Show error to user
-  }
-}
-
-function onParentFolderClick() {
-  if (parentFolderId.value) {
-    folderId.value = parentFolderId.value
-    breadcrumbsItems.value.pop()
-  }
-}
-
-async function onCreateFolder() {
-  if (!newFolderName.value) {
-    console.warn('Folder name is required')
-    return
-  }
-
-  const result = await createFolder(folderId.value, newFolderName.value)
-
+async function onCreateFolder(name: string) {
+  const result = await createFolder(folderId.value, name)
   if (result.success) {
-    newFolderName.value = ''
     isNewFolderDialogOpen.value = false
     refresh()
   }
@@ -80,12 +30,11 @@ async function onCreateFolder() {
   }
 }
 
+// Context menu
 const contextMenu = useTemplateRef('contextMenu')
 const isContextMenuOpen = ref<boolean>(false)
-
-const menuItems = ref<{ text: string, value: ContextMenuAction, disabled?: boolean }[]>([])
-
 const selectedId = ref<string>()
+const menuItems = ref<{ text: string, value: ContextMenuAction, disabled?: boolean }[]>([])
 
 function onContextMenu(id: string, isFolder: boolean) {
   isContextMenuOpen.value = false
@@ -102,20 +51,15 @@ async function onMenuClicked(action: ContextMenuAction) {
     return
   }
 
-  // Use current folder as destination for copy/move operations
-  const options = {
+  const result = await handleOperation(action, selectedId.value, {
     targetFolderId: folderId.value,
-    allowOverwrite: false, // Prevent overwriting by default
-  }
-
-  const result = await handleOperation(action, selectedId.value, options)
+    allowOverwrite: false,
+  })
 
   if (result.success) {
     refresh()
-    // TODO: Show success notification to user
   }
   else {
-    // TODO: Show error notification to user
     console.error(result.message || 'Operation failed')
   }
 }
@@ -137,43 +81,25 @@ async function onMenuClicked(action: ContextMenuAction) {
     <AppContextMenu
       ref="contextMenu"
       v-model="isContextMenuOpen"
-      :menu-items
+      :menu-items="menuItems"
       @on-menu-clicked="onMenuClicked"
     >
       <AppItemList
         :folders="folders"
         :files="files"
-        :is-top-level="isTopLEvel"
-        @on-folder-click="onFolderClick"
-        @on-file-click="onFileClick"
-        @on-parent-folder-click="onParentFolderClick"
+        :is-top-level="isTopLevel"
+        @on-folder-click="navigateTo"
+        @on-file-click="navigateToFile"
+        @on-parent-folder-click="navigateUp"
         @on-file-context-menu="onContextMenu"
-        @on-context-menu="(folderId, isFolder) => onContextMenu(folderId, isFolder)"
+        @on-context-menu="(id, isFolder) => onContextMenu(id, isFolder)"
       />
     </AppContextMenu>
     <AppFileUpload @files-uploaded="refresh" />
 
-    <VDialog v-model="isNewFolderDialogOpen" max-width="500px">
-      <VCard>
-        <VCardTitle>Create New Folder</VCardTitle>
-        <VCardText>
-          <VTextField
-            v-model="newFolderName"
-            label="Folder Name"
-            autofocus
-            @keyup.enter="onCreateFolder"
-          />
-        </VCardText>
-        <VCardActions>
-          <VSpacer />
-          <VBtn variant="text" @click="isNewFolderDialogOpen = false">
-            Cancel
-          </VBtn>
-          <VBtn color="primary" @click="onCreateFolder">
-            Create
-          </VBtn>
-        </VCardActions>
-      </VCard>
-    </VDialog>
+    <AppNewFolderDialog
+      v-model="isNewFolderDialogOpen"
+      @create="onCreateFolder"
+    />
   </div>
 </template>
