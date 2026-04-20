@@ -95,7 +95,7 @@ async function onMenuClicked(action: ContextMenuAction) {
         @on-context-menu="(id, isFolder) => onContextMenu(id, isFolder)"
       />
     </AppContextMenu>
-    <AppFileUpload @files-uploaded="refresh" />
+    <AppFileUpload :folder-id @files-uploaded="refresh" />
 
     <AppNewFolderDialog
       v-model="isNewFolderDialogOpen"

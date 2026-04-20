@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import type { UploadResponse } from '~~/server/api/pcloud/files/upload.post'
-import { ref } from 'vue'
+
+const props = defineProps<{
+  folderId?: string
+}>()
 
 const emit = defineEmits<{
   (e: 'filesUploaded'): void
@@ -9,7 +12,8 @@ const emit = defineEmits<{
 const files = ref<File[]>([])
 const isUploading = ref(false)
 const uploadProgress = ref<number>(0)
-const currentFolderId = ref<number>(0)
+
+const currentFolderId = computed(() => props.folderId ?? '0')
 
 async function uploadFiles() {
   if (files.value.length === 0)
@@ -93,7 +97,22 @@ async function uploadFiles() {
         multiple
         clearable
         show-size
-      />
+      >
+        <VFileUploadDropzone />
+        <VFileUploadList>
+          <template #item="{ file, props: itemProps }">
+            <VFileUploadItem v-bind="itemProps" :file="file" lines="two">
+              <template #prepend>
+                <VAvatar rounded="xl" size="32" style="corner-shape: squircle" />
+              </template>
+
+              <template #clear="{ props: clearProps }">
+                <VBtn color="primary" v-bind="clearProps" />
+              </template>
+            </VFileUploadItem>
+          </template>
+        </VFileUploadList>
+      </VFileUpload>
 
       <!-- Upload progress indicator -->
       <VProgressLinear
