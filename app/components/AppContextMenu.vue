@@ -9,38 +9,52 @@ defineEmits<{
   onMenuClicked: [action: ContextMenuItem['value']]
 }>()
 
-const isOpen = defineModel({ type: Boolean })
-const menuCoordinates = ref<[number, number]>()
-const { x, y } = useMouse()
+const isOpen = defineModel<boolean>()
+const initialX = ref<number>(0)
+const initialY = ref<number>(0)
+
 const { y: scrollY } = useWindowScroll()
 
-function show() {
+const menuTarget = computed<[number, number]>(() => [
+  initialX.value,
+  initialY.value - scrollY.value,
+])
+
+async function show(x: number, y: number) {
+  if (isOpen.value) {
+    isOpen.value = false
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+  initialX.value = x
+  initialY.value = y
+  isOpen.value = true
+}
+
+function close() {
   isOpen.value = false
-  menuCoordinates.value = [x.value, y.value - scrollY.value]
-  nextTick(() => {
-    isOpen.value = true
-  })
 }
 
 defineExpose({
   show,
+  close,
 })
 </script>
 
 <template>
-  <Teleport to="body">
-    <VMenu v-model="isOpen" :target="menuCoordinates">
-      <VList>
-        <VListItem
-          v-for="(item, index) in menuItems"
-          :key="index"
-          :value="index"
-          @click="$emit('onMenuClicked', item.value)"
-        >
-          <VListItemTitle>{{ item.text }}</VListItemTitle>
-        </VListItem>
-      </VList>
-    </VMenu>
-  </Teleport>
+  <VMenu
+    v-model="isOpen"
+    :target="menuTarget"
+    :close-on-content-click="true"
+  >
+    <VList>
+      <VListItem
+        v-for="(item, index) in menuItems"
+        :key="`context-menu-item-${index}`"
+        @click="$emit('onMenuClicked', item.value)"
+      >
+        <VListItemTitle>{{ item.text }}</VListItemTitle>
+      </VListItem>
+    </VList>
+  </VMenu>
   <slot />
 </template>

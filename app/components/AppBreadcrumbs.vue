@@ -5,5 +5,5 @@ defineProps<{
 </script>
 
 <template>
-  <VBreadcrumbs :items="items" />
+  <VBreadcrumbs :items />
 </template>

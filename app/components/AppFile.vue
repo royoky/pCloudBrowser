@@ -24,6 +24,7 @@ defineProps<{
         color="grey-lighten-1"
         icon="mdi-information"
         variant="text"
+        @click.stop="console.log(`info about file id ${file.id}`)"
       />
     </template>
   </VListItem>

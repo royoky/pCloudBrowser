@@ -36,13 +36,10 @@ const isContextMenuOpen = ref<boolean>(false)
 const selectedId = ref<string>()
 const menuItems = ref<{ text: string, value: ContextMenuAction, disabled?: boolean }[]>([])
 
-function onContextMenu(id: string, isFolder: boolean) {
-  isContextMenuOpen.value = false
+function onContextMenu(e: MouseEvent, id: string, isFolder: boolean) {
   selectedId.value = id
-  nextTick(() => {
-    menuItems.value = isFolder ? FOLDER_MENU_ITEMS : FILE_MENU_ITEMS
-    contextMenu.value?.show()
-  })
+  menuItems.value = isFolder ? FOLDER_MENU_ITEMS : FILE_MENU_ITEMS
+  contextMenu.value?.show(e.pageX, e.pageY)
 }
 
 async function onMenuClicked(action: ContextMenuAction) {
@@ -66,8 +63,8 @@ async function onMenuClicked(action: ContextMenuAction) {
 </script>
 
 <template>
-  <div class="d-flex flex-column w-100">
-    <div class="d-flex justify-end mb-4">
+  <div class="d-flex flex-column w-100 ga-4" style="max-width: 1080px;">
+    <div class="d-flex justify-end">
       <VBtn
         color="primary"
         prepend-icon="mdi-folder-plus"
@@ -92,10 +89,10 @@ async function onMenuClicked(action: ContextMenuAction) {
         @on-file-click="navigateToFile"
         @on-parent-folder-click="navigateUp"
         @on-file-context-menu="onContextMenu"
-        @on-context-menu="(id, isFolder) => onContextMenu(id, isFolder)"
+        @on-context-menu="(e, id, isFolder) => onContextMenu(e, id, isFolder)"
       />
     </AppContextMenu>
-    <AppFileUpload :folder-id @files-uploaded="refresh" />
+    <AppFileUpload :folder-id="folderId" @files-uploaded="refresh" />
 
     <AppNewFolderDialog
       v-model="isNewFolderDialogOpen"

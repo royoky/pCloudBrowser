@@ -10,17 +10,12 @@ defineProps<{
 const emit = defineEmits<{
   (e: 'onFolderClick', id: string): void
   (e: 'onFileClick', id: string): void
-  (e: 'onContextMenu', id: string, isFolder: boolean): void
+  (e: 'onContextMenu', event: MouseEvent, id: string, isFolder: boolean): void
   (e: 'onParentFolderClick'): void
 }>()
 
-/* function transformDateFromRFC2822(pCloudDate: string): string | null {
-  const date = DateTime.fromRFC2822(pCloudDate)
-  return date?.toISODate() ?? null
-} */
-
-function onContexMenu(fileId: string, isFolder: boolean) {
-  emit('onContextMenu', fileId, isFolder)
+function onContextMenu(e: MouseEvent, id: string, isFolder: boolean) {
+  emit('onContextMenu', e, id, isFolder)
 }
 </script>
 
@@ -44,7 +39,7 @@ function onContexMenu(fileId: string, isFolder: boolean) {
       :key="folder.id"
       :folder="folder"
       @on-folder-click="$emit('onFolderClick', folder.id)"
-      @contextmenu.prevent="onContexMenu(folder.id, true)"
+      @contextmenu.prevent="onContextMenu($event, folder.id, true)"
     />
 
     <VDivider inset />
@@ -57,7 +52,7 @@ function onContexMenu(fileId: string, isFolder: boolean) {
       :key="file.id"
       :file="file"
       @click="$emit('onFileClick', file.id)"
-      @contextmenu.prevent="onContexMenu(file.id, false)"
+      @contextmenu.prevent="onContextMenu($event, file.id, false)"
     />
   </VList>
 </template>

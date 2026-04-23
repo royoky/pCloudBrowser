@@ -89,7 +89,7 @@ async function uploadFiles() {
 
 <template>
   <ClientOnly>
-    <VContainer>
+    <div>
       <VFileUpload
         v-model="files"
         density="compact"
@@ -137,6 +137,6 @@ async function uploadFiles() {
       >
         Upload to Cloud
       </VBtn>
-    </VContainer>
+    </div>
   </ClientOnly>
 </template>
