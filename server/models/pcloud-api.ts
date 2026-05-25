@@ -20,7 +20,7 @@ export const PCLOUD_FILE_CATEGORIES = {
   Video: 2,
   Audio: 3,
   Document: 4,
-  Archive: 5
+  Archive: 5,
 } as const
 
 // Extract category type from the const object
@@ -47,30 +47,31 @@ export interface PCloudFileMetadata extends PCloudBaseMetadata {
   contenttype: string
   hash: string
   category: PCloudFileCategory // pCloud uses category integers (0-6)
-  
+
   // Video file optional fields
-  width?: number          // Width in pixels
-  height?: number         // Height in pixels
-  duration?: string       // Duration in seconds (as string)
-  fps?: string            // Frames per second (as string)
-  videocodec?: string     // Video codec (e.g., 'h264')
-  audiocodec?: string     // Audio codec (e.g., 'aac')
-  videobitrate?: number   // Video bitrate in kbps
-  audiobitrate?: number   // Audio bitrate in kbps
+  width?: number // Width in pixels
+  height?: number // Height in pixels
+  duration?: string // Duration in seconds (as string)
+  fps?: string // Frames per second (as string)
+  videocodec?: string // Video codec (e.g., 'h264')
+  audiocodec?: string // Audio codec (e.g., 'aac')
+  videobitrate?: number // Video bitrate in kbps
+  audiobitrate?: number // Audio bitrate in kbps
   audiosamplerate?: number // Audio sample rate in Hz
-  rotate?: number         // Rotation degrees (0, 90, 180, 270)
-  
+  rotate?: number // Rotation degrees (0, 90, 180, 270)
+
   // Audio file optional fields
-  artist?: string         // Artist name
-  album?: string          // Album name
-  title?: string          // Track title
-  genre?: string          // Music genre
-  trackno?: string        // Track number
+  artist?: string // Artist name
+  album?: string // Album name
+  title?: string // Track title
+  genre?: string // Music genre
+  trackno?: string // Track number
 }
 
 export interface PCloudFolderMetadata extends PCloudBaseMetadata {
   isfolder: true // Discriminator
   folderid: number
+  contents?: PCloudItemMetadata[] // For recursive responses
 }
 
 export type PCloudItemMetadata = PCloudFileMetadata | PCloudFolderMetadata
@@ -78,7 +79,6 @@ export type PCloudItemMetadata = PCloudFileMetadata | PCloudFolderMetadata
 // When querying listfolder, the requested folder contains a 'contents' array
 export interface PCloudFolderContents extends PCloudFolderMetadata {
   contents: PCloudItemMetadata[]
-  filecount: number
 }
 
 // Type aliases for convenience
@@ -133,6 +133,15 @@ export interface PCloudDeleteFolderRecursiveResponse extends PCloudBaseResponse 
   deletedfolders: number
 }
 
+// Copy operation responses
+export interface PCloudCopyFileResponse extends PCloudBaseResponse {
+  metadata: PCloudFileMetadata
+}
+
+export interface PCloudCopyFolderResponse extends PCloudBaseResponse {
+  metadata: PCloudFolderMetadata
+}
+
 export interface PCloudUploadResponse extends PCloudBaseResponse {
   fileids: number[] // Array of uploaded file IDs
   metadata: PCloudFileMetadata[] // Array of metadata objects for uploaded files
@@ -156,10 +165,6 @@ export interface PCloudFileLinkResponse extends PCloudBaseResponse {
   expires: string
 }
 
-export interface PCloudCopyFileResponse extends PCloudBaseResponse {
-  metadata: PCloudFileMetadata
-}
-
 export interface PCloudRenameFileResponse extends PCloudBaseResponse {
   metadata: PCloudFileMetadata
 }
@@ -169,9 +174,9 @@ export function isPCloudSuccess(response: PCloudBaseResponse): boolean {
   return response.result === PCloudResultCode.SUCCESS // Assuming SUCCESS is 0
 }
 
-export function getPCloudErrorMessage(response: PCloudBaseResponse): string | undefined {
+export function getPCloudErrorMessage(response: PCloudBaseResponse): string | null {
   if (!isPCloudSuccess(response)) {
     return response.error || `pCloud API error code: ${response.result}`
   }
-  return undefined
+  return null
 }

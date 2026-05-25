@@ -6,15 +6,28 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
     '@vueuse/nuxt',
-    ['vuetify-nuxt-module', {
-      moduleOptions: {
-        prefersColorScheme: true,
-        prefersColorSchemeOptions: {
-          cookieName: 'vuetify-theme',
+    [
+      'vuetify-nuxt-module',
+      {
+        moduleOptions: {
+          labComponents: [
+            'VFileUpload',
+            'VFileUploadDropzone',
+            'VFileUploadList',
+            'VFileUploadItem',
+          ],
+          ssrClientHintsConfiguration: {
+            reloadOnFirstRequest: true,
+            viewportSize: true,
+            prefersColorScheme: true,
+            prefersColorSchemeOptions: {
+              useBrowserThemeOnly: false,
+            },
+          },
         },
+        vuetifyOptions: './vuetify.config.ts',
       },
-      vuetifyOptions: './vuetify.config.ts',
-    }],
+    ],
     'nuxt-auth-utils',
   ],
 

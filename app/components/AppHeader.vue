@@ -16,7 +16,7 @@ const toggleDrawer = useToggle(rail)
       <VAppBarNavIcon @click="toggleDrawer()" />
     </template>
     <VAppBarTitle>
-      <div class="app-bar-title" href="/">
+      <div href="/">
         pCloud Browser
       </div>
     </VAppBarTitle>

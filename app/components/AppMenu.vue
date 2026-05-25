@@ -16,9 +16,7 @@ const items = [
 const email = computed(() => user.value?.email ?? '')
 const quota = computed((): string => {
   if (user.value?.usedquota && user.value.quota) {
-    return `${prettyBytes(user.value.usedquota)} out of ${prettyBytes(
-      user.value.quota,
-    )} used`
+    return `${prettyBytes(user.value.usedquota)} out of ${prettyBytes(user.value.quota)} used`
   }
   return ''
 })
@@ -48,7 +46,7 @@ function handleRail(isRail: boolean) {
       <VListItem :title="email" :subtitle="quota">
         <template #prepend>
           <VAvatar color="red">
-            <span>{{ email?.[0]?.toUpperCase() ?? "?" }}</span>
+            <span>{{ email?.[0]?.toUpperCase() ?? '?' }}</span>
           </VAvatar>
         </template>
       </VListItem>
@@ -57,13 +55,7 @@ function handleRail(isRail: boolean) {
     <VDivider />
 
     <VList :lines="false" density="compact" nav>
-      <VListItem
-        v-for="(item, i) in items"
-        :key="i"
-        :value="item"
-        :to="item.to"
-        color="primary"
-      >
+      <VListItem v-for="(item, i) in items" :key="i" :value="item" :to="item.to" color="primary">
         <template #prepend>
           <VIcon :icon="item.icon" />
         </template>

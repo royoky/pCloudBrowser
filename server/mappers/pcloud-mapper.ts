@@ -29,10 +29,13 @@ export function mapPCloudItemToCloudItem(
 ): CloudItem {
   const itemId = item.isfolder ? item.folderid.toString() : item.fileid.toString()
 
+  const itemPath
+    = item.path || (currentPath === '/' ? `/${item.name}` : `${currentPath}/${item.name}`)
+
   const baseItem = {
     id: itemId,
     name: item.name,
-    path: currentPath,
+    path: itemPath,
     parentId: item.parentfolderid?.toString(),
     createdAt: item.created,
     modifiedAt: item.modified,
@@ -49,9 +52,9 @@ export function mapPCloudItemToCloudItem(
     return {
       ...baseItem,
       type: 'folder',
-      itemCount: 0, // Individual items don't have filecount, only folder listings do
-      // Note: entries would be populated separately if needed
-    } as CloudFolder
+      itemCount: item.contents?.length ?? 0,
+      entries: item.contents ? mapPCloudItems(item.contents, currentPath) : [],
+    }
   }
 
   const extension = item.name.split('.').pop() || ''
@@ -69,7 +72,7 @@ export function mapPCloudItemToCloudItem(
       canPreview: category.previewable,
       canEdit: category.editable,
     },
-  } as CloudFile
+  }
 }
 
 export function mapPCloudItems(
@@ -85,15 +88,18 @@ export function mapPCloudListToCloudFolder(
 ): CloudFolder {
   const cloudItems = mapPCloudItems(listResponse.metadata.contents, currentPath)
 
+  // Use the folder's own path from pCloud, or fall back to currentPath
+  const folderPath = listResponse.metadata.path || currentPath
+
   return {
     id: listResponse.metadata.folderid.toString(),
     name: listResponse.metadata.name,
     type: 'folder',
-    path: currentPath,
+    path: folderPath,
     parentId: listResponse.metadata.parentfolderid?.toString() ?? null,
     createdAt: listResponse.metadata.created,
     modifiedAt: listResponse.metadata.modified,
-    itemCount: listResponse.metadata.filecount ?? 0,
+    itemCount: listResponse.metadata.contents.length,
     entries: cloudItems,
     capabilities: {
       canPreview: false,

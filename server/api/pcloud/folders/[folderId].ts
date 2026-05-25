@@ -9,12 +9,15 @@ import type {
 import { z } from 'zod'
 import { PCLOUD_API_ENDPOINTS } from '~~/server/constants/pcloud-endpoints'
 import {
-  mapPCloudFolderToCloudFolder, // Suggestion: create this mapper for single folders
+  mapPCloudFolderToCloudFolder,
   mapPCloudListToCloudFolder,
 } from '~~/server/mappers/pcloud-mapper'
 import { getPCloudErrorMessage, isPCloudSuccess } from '~~/server/models/pcloud-api'
 
-const folderBodySchema = z.object({ name: z.string() })
+const folderBodySchema = z.object({
+  newName: z.string().optional(),
+  targetFolderId: z.string().optional(),
+})
 
 // Helper to map pCloud errors to proper HTTP status codes
 function getHttpStatusCode(pcloudResult: number): number {
@@ -74,10 +77,13 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     case 'POST': {
+      // Create new folder
       const body = await readValidatedBody(event, folderBodySchema.parse)
       const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.CREATE_FOLDER}`
+      // Map generic name to pCloud parameter
+      const params = { ...baseParams, name: body.newName }
       const response = await $fetch<PCloudCreateFolderResponse>(url, {
-        params: { ...baseParams, name: body.name },
+        params,
         headers,
       })
 
@@ -88,11 +94,18 @@ export default defineEventHandler(async (event: H3Event) => {
       return mapPCloudFolderToCloudFolder(response.metadata)
     }
 
-    case 'PATCH': {
+    case 'PUT': {
+      // Move/Rename folder
       const body = await readValidatedBody(event, folderBodySchema.parse)
-      const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.MOVE}`
+      const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.MOVE_FOLDER}`
+      // Map generic names to pCloud-specific names
+      const params: Record<string, string | number | undefined> = {
+        ...baseParams,
+        ...(body.newName && { toname: body.newName }),
+        ...(body.targetFolderId && { tofolderid: Number(body.targetFolderId) }),
+      }
       const response = await $fetch<PCloudRenameFolderResponse>(url, {
-        params: { ...baseParams, toname: body.name },
+        params,
         headers,
       })
 

@@ -15,8 +15,10 @@ export const PCLOUD_API_ENDPOINTS = {
   FILES: {
     LIST: '/listfolder',
     CREATE_FOLDER: '/createfolder',
-    COPY: '/copyfile',
-    MOVE: '/renamefile',
+    COPY_FILE: '/copyfile',
+    COPY_FOLDER: '/copyfolder',
+    MOVE_FOLDER: '/renamefolder',
+    MOVE_FILE: '/renamefile',
     UPLOAD: '/uploadfile',
     UPLOAD_LINK: '/createuploadlink', // For generating signed upload URLs
     DOWNLOAD: '/getfilelink',
@@ -24,6 +26,7 @@ export const PCLOUD_API_ENDPOINTS = {
     FILE_UNPUBLISH: '/unpublishfile',
     DELETE_FOLDER: '/deletefolderrecursive',
     DELETE_FILE: '/deletefile',
+    GET: '/stat', // Get file/folder metadata
   },
   USERS: {
     INFO: '/userinfo',
