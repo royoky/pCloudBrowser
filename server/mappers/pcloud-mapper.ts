@@ -1,4 +1,3 @@
-import type { User } from '#auth-utils'
 import type {
   PCloudFile,
   PCloudFileMetadata,
@@ -8,6 +7,8 @@ import type {
   PCloudUserInfo,
 } from '~~/server/models/pcloud-api'
 
+import type { User } from '#auth-utils'
+
 import type {
   CloudFile,
   CloudFolder,
@@ -15,7 +16,6 @@ import type {
   CloudItemCapabilities,
   MiniCloudFolder,
 } from '../../shared/models/cloud-item'
-
 /**
  * pCloud to Cloud Item Mapper
  *
