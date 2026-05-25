@@ -138,7 +138,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     case 'PATCH': {
       const body = await readValidatedBody(event, renameBodySchema.parse)
-      const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.MOVE}`
+      const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.MOVE_FILE}`
       // Map generic names to pCloud-specific names
       const params = {
         ...baseParams,
@@ -158,7 +158,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     case 'POST': {
       const body = await readValidatedBody(event, copyBodySchema.parse)
-      const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.COPY}`
+      const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.COPY_FILE}`
       // Map generic names to pCloud-specific names
       const params = {
         ...baseParams,

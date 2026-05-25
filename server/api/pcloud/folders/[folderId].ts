@@ -97,7 +97,7 @@ export default defineEventHandler(async (event: H3Event) => {
     case 'PUT': {
       // Move/Rename folder
       const body = await readValidatedBody(event, folderBodySchema.parse)
-      const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.MOVE}`
+      const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.MOVE_FOLDER}`
       // Map generic names to pCloud-specific names
       const params: Record<string, string | number | undefined> = {
         ...baseParams,

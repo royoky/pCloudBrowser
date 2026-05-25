@@ -7,10 +7,7 @@ defineProps<{
 </script>
 
 <template>
-  <VListItem
-    :title="file.name"
-    :subtitle="file.modifiedAt"
-  >
+  <VListItem :title="file.name" :subtitle="file.modifiedAt">
     <template #prepend>
       <VAvatar color="blue">
         <VIcon>

@@ -5,21 +5,30 @@ export function useFolderBrowser(initialFolderId: string = '0') {
   const folderId = ref<string>(initialFolderId)
   const breadcrumbsItems = ref<string[]>(['All Files'])
 
-  const params = { recursive: true }
+  const params = { recursive: false }
   const { data, refresh } = useListFolder(folderId, params)
 
+  // Get the actual folder ID - when we query '0', pCloud returns the real root folder ID
+  const currentFolderActualId = computed<string>(() => {
+    if (folderId.value === '0' && data.value?.id) {
+      // Return the actual root folder ID from the response
+      return data.value.id
+    }
+    return folderId.value
+  })
+
   const parentFolderId = computed<string | null>(() => {
-    if (folderId.value === '0')
-      return null
+    // If we're at root (folderId is the actual root ID now, not '0'), parent is null
     return data.value?.parentId ?? null
   })
 
-  const folders = computed<MiniCloudFolder[]>(() =>
-    data.value?.entries.filter((item): item is MiniCloudFolder => item.type === 'folder') ?? [],
+  const folders = computed<MiniCloudFolder[]>(
+    () =>
+      data.value?.entries.filter((item): item is MiniCloudFolder => item.type === 'folder') ?? [],
   )
 
-  const files = computed<CloudFile[]>(() =>
-    data.value?.entries.filter((item): item is CloudFile => item.type === 'file') ?? [],
+  const files = computed<CloudFile[]>(
+    () => data.value?.entries.filter((item): item is CloudFile => item.type === 'file') ?? [],
   )
 
   const isTopLevel = computed<boolean>(() => parentFolderId.value === null)
@@ -51,6 +60,7 @@ export function useFolderBrowser(initialFolderId: string = '0') {
 
   return {
     folderId,
+    currentFolderActualId,
     breadcrumbsItems,
     parentFolderId,
     folders,

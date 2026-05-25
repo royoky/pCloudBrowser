@@ -1,6 +1,6 @@
 // server/api/pcloud/files/[fileId]/copy.post.ts
 import type { H3Event } from 'h3'
-import type { PCloudCopyFileResponse } from '~~/server/models/pcloud-api'
+import type { PCloudBaseResponse, PCloudCopyFileResponse } from '~~/server/models/pcloud-api'
 import { z } from 'zod'
 import { PCLOUD_API_ENDPOINTS } from '~~/server/constants/pcloud-endpoints'
 import { mapPCloudFileToCloudFile } from '~~/server/mappers/pcloud-mapper'
@@ -45,7 +45,7 @@ function getHttpStatusCode(pcloudResult: number): number {
   }
 }
 
-function createPCloudError(response: any, defaultMsg: string) {
+function createPCloudError(response: PCloudBaseResponse, defaultMsg: string) {
   return createError({
     statusCode: getHttpStatusCode(response.result),
     message: getPCloudErrorMessage(response) || defaultMsg,
@@ -72,16 +72,20 @@ export default defineEventHandler(async (event: H3Event) => {
     copyFileBodySchema.parse,
   )
 
-  const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.COPY}`
+  const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.COPY_FILE}`
   const headers = { authorization: `Bearer ${token}` }
 
   // pCloud expects parameters as query params for copyfile
   // Map generic names to pCloud-specific names
+  // pCloud copyfile supports tofolderid + toname for move and rename
+  // Note: Auto-rename is disabled. When allowOverwrite=false (default, noover=1),
+  // pCloud returns error 2004 if file already exists. This will be handled
+  // in a future branch to show Skip/Overwrite dialog to user.
   const params: Record<string, string | number | undefined> = {
     fileid: fileIdNum,
     tofolderid: Number(targetFolderId),
+    noover: allowOverwrite ? 0 : 1, // pCloud: noover=1 means do not overwrite
     ...(newName && { toname: newName }),
-    noover: allowOverwrite ? 0 : 1, // pCloud: noover=1 means skip if exists
   }
 
   const response = await $fetch<PCloudCopyFileResponse>(url, {

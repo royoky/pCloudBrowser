@@ -26,12 +26,7 @@ function onCreate() {
     <VCard>
       <VCardTitle>Create New Folder</VCardTitle>
       <VCardText>
-        <VTextField
-          v-model="name"
-          label="Folder Name"
-          autofocus
-          @keyup.enter="onCreate"
-        />
+        <VTextField v-model="name" label="Folder Name" autofocus @keyup.enter="onCreate" />
       </VCardText>
       <VCardActions>
         <VSpacer />

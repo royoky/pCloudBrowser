@@ -9,10 +9,21 @@ import { getPCloudErrorMessage, isPCloudSuccess } from '~~/server/models/pcloud-
 // pCloud copyfolder API: https://docs.pcloud.com/methods/folder/copyfolder.html
 const copyFolderBodySchema = z.object({
   targetFolderId: z.string().describe('Destination folder ID'),
-  newName: z.string().optional().describe('New name for the copied folder'),
-  allowOverwrite: z.coerce.boolean().optional().default(false).describe('Allow overwriting existing files'),
+  newName: z
+    .string()
+    .optional()
+    .describe('New name for the copied folder (not supported by pCloud, for API consistency)'),
+  allowOverwrite: z.coerce
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('Allow overwriting existing files'),
   skipExisting: z.coerce.boolean().optional().default(false).describe('Skip existing files'),
-  copyContentOnly: z.coerce.boolean().optional().default(false).describe('Copy content only (no folder structure)'),
+  copyContentOnly: z.coerce
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('Copy content only (no folder structure)'),
 })
 
 function getHttpStatusCode(pcloudResult: number): number {
@@ -68,7 +79,7 @@ export default defineEventHandler(async (event: H3Event) => {
     throw createError({ statusCode: 400, message: 'Folder ID must be a valid number' })
   }
 
-  const { targetFolderId, newName, allowOverwrite, skipExisting, copyContentOnly } = await readValidatedBody(
+  const { targetFolderId, allowOverwrite, skipExisting, copyContentOnly } = await readValidatedBody(
     event,
     copyFolderBodySchema.parse,
   )
@@ -76,19 +87,20 @@ export default defineEventHandler(async (event: H3Event) => {
   const url = `https://${baseUrl}${PCLOUD_API_ENDPOINTS.FILES.COPY_FOLDER}`
   const headers = { authorization: `Bearer ${token}` }
 
-  // pCloud expects parameters as query params for copyfolder
-  // Map generic names to pCloud-specific names
-  const params = {
+  // pCloud copyfolder does NOT support toname parameter.
+  // The folder will keep its original name.
+  // Use tofolderid to specify destination folder.
+  // allowOverwrite controls noover: 0 = allow, 1 = prevent overwrite
+  const params: Record<string, string | number | undefined> = {
     folderid: folderIdNum,
     tofolderid: Number(targetFolderId),
-    ...(newName && { toname: newName }),
-    noover: allowOverwrite ? 0 : 1, // pCloud: noover=1 means skip if exists
+    noover: allowOverwrite ? 0 : 1,
     skipexisting: skipExisting ? 1 : undefined,
     copycontentonly: copyContentOnly ? 1 : undefined,
   }
 
   const response = await $fetch<PCloudCopyFolderResponse>(url, {
-    method: 'GET', // pCloud uses GET for copyfolder
+    method: 'GET',
     params,
     headers,
   })

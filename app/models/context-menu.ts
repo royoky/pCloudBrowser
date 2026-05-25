@@ -26,6 +26,7 @@ export interface ContextMenuOperationHandler {
   ) => Promise<ContextMenuOperationResult>
 }
 
+// Basic menu items without folder picker
 export const FOLDER_MENU_ITEMS: ContextMenuItem[] = [
   { value: 'DELETE_FOLDER', text: 'Delete folder' },
   { value: 'COPY_FOLDER', text: 'Copy folder' },
