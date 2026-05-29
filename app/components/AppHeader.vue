@@ -1,27 +1,82 @@
 <script setup lang="ts">
-const theme = useTheme()
+const colorMode = useColorMode()
 
 function toggleTheme() {
-  theme.global.name.value = theme.global.current.value.dark ? 'light' : 'dark'
+  colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
 }
-
-const rail = useState<boolean>('rail')
-
-const toggleDrawer = useToggle(rail)
 </script>
 
 <template>
-  <VAppBar name="App Bar">
-    <template #prepend>
-      <VAppBarNavIcon @click="toggleDrawer()" />
-    </template>
-    <VAppBarTitle>
-      <div href="/">
+  <header class="app-header">
+    <div class="header-left">
+      <NuxtLink to="/" class="app-logo">
         pCloud Browser
-      </div>
-    </VAppBarTitle>
-    <VBtn icon @click="toggleTheme">
-      <VIcon>mdi-theme-light-dark</VIcon>
-    </VBtn>
-  </VAppBar>
+      </NuxtLink>
+    </div>
+    <div class="header-right">
+      <button class="theme-toggle" @click="toggleTheme" :aria-label="`Toggle ${colorMode.value === 'dark' ? 'light' : 'dark'} mode`">
+        <svg v-if="colorMode.value === 'dark'" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5" />
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+        </svg>
+        <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      </button>
+    </div>
+  </header>
 </template>
+
+<style scoped>
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  height: 64px;
+  background-color: var(--background);
+  border-bottom: 1px solid var(--border);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.app-logo {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-primary);
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.theme-toggle:hover {
+  background-color: var(--surface-hover);
+}
+
+.theme-toggle svg {
+  width: 24px;
+  height: 24px;
+}
+</style>

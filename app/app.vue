@@ -9,21 +9,32 @@ useHead({
     },
   ],
 })
+
+// Import VueFinder CSS
+// We import it here so it's available globally
+import 'vuefinder/dist/style.css'
 </script>
 
 <template>
-  <div>
-    <VApp>
-      <VLayout>
-        <AppHeader />
-        <AppMenu />
-        <VFooter app class="d-flex justify-center align-center">
-          <div>App Footer</div>
-        </VFooter>
-        <VMain>
-          <NuxtPage />
-        </VMain>
-      </VLayout>
-    </VApp>
+  <div class="app-container">
+    <AppHeader />
+    <main class="main-content">
+      <NuxtPage />
+    </main>
   </div>
 </template>
+
+<style>
+/* Global styles for the application */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+</style>

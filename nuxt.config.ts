@@ -6,29 +6,13 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
     '@vueuse/nuxt',
-    [
-      'vuetify-nuxt-module',
-      {
-        moduleOptions: {
-          labComponents: [
-            'VFileUpload',
-            'VFileUploadDropzone',
-            'VFileUploadList',
-            'VFileUploadItem',
-          ],
-          ssrClientHintsConfiguration: {
-            reloadOnFirstRequest: true,
-            viewportSize: true,
-            prefersColorScheme: true,
-            prefersColorSchemeOptions: {
-              useBrowserThemeOnly: false,
-            },
-          },
-        },
-        vuetifyOptions: './vuetify.config.ts',
-      },
-    ],
     'nuxt-auth-utils',
+  ],
+
+  // VueFinder CSS - we import it in our layout instead
+  // to have better control over when it's loaded
+  css: [
+    // VueFinder styles will be imported in app.vue or layout
   ],
 
   runtimeConfig: {
@@ -49,5 +33,11 @@ export default defineNuxtConfig({
     experimental: {
       openAPI: true,
     },
+  },
+
+  // Build configuration for VueFinder
+  build: {
+    // Transpile VueFinder for better compatibility
+    transpile: ['vuefinder'],
   },
 })
