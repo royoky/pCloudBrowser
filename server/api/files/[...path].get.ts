@@ -11,8 +11,8 @@
  */
 
 import type { H3Event } from 'h3';
-import type { FileRepository } from '../../../adapters/pcloud/repository';
-import { createPCloudRepository } from '../../../adapters/pcloud/repository';
+import type { FileRepository } from '../../adapters/pcloud/repository';
+import { createPCloudRepository } from '../../adapters/pcloud/repository';
 
 // Helper to get repository from event context
 function getRepository(event: H3Event): FileRepository {

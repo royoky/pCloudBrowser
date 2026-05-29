@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { VueFinder } from 'vuefinder';
+import type { Driver } from 'vuefinder';
 import { useVueFinderDriver } from '~~/app/composables/useFileSystem';
 
 const { loggedIn } = useUserSession();
 
 // Get the VueFinder driver from our composable
-const driver = useVueFinderDriver();
+// We use a type assertion because our driver implementation uses local types
+// that are compatible with VueFinder's Driver interface
+const driver = useVueFinderDriver() as unknown as Driver;
 
 // Configuration for VueFinder
 const vueFinderConfig = {

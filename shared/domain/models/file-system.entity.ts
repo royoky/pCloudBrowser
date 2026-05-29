@@ -77,6 +77,12 @@ export interface FolderEntity extends FileSystemItemBase {
    * Used for lazy loading optimization
    */
   isLoaded?: boolean;
+  
+  /** 
+   * Child items in this folder
+   * Only populated when the folder is loaded
+   */
+  children?: FileSystemItem[];
 }
 
 /**

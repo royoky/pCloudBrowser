@@ -118,7 +118,23 @@ export function createVueFinderDriver(
         
         try {
           await repository.delete(path);
-          deletedEntries.push(item);
+          
+          // Map the deleted item to a DirEntry for the response
+          // Note: We don't have the full domain entity here, so we create a basic entry
+          const deletedEntry: VueFinderDirEntry = {
+            dir: extractPath(params.path),
+            basename: path.split('/').pop() || path,
+            extension: '',
+            path: item.path,
+            storage: storageName,
+            type: item.type === 'dir' ? 'dir' : 'file',
+            file_size: null,
+            last_modified: null,
+            mime_type: null,
+            read_only: false,
+            visibility: 'private',
+          };
+          deletedEntries.push(deletedEntry);
         } catch (error) {
           console.error(`Failed to delete ${item.path}:`, error);
           // Continue with other items even if one fails
@@ -273,19 +289,17 @@ export function createVueFinderDriver(
 }
 
 /**
- * Default configuration for creating a pCloud VueFinder driver
- * This can be used when you want to create a driver with default settings
- */
-export interface PCloudVueFinderDriverConfig extends VueFinderDriverConfig {
-  storageName?: string;
-}
-
-/**
  * Convenience function for creating a pCloud-specific VueFinder driver
  */
 export function createPCloudVueFinderDriver(
   repository: FileRepository,
-  config?: PCloudVueFinderDriverConfig
+  config?: {
+    storageName?: string;
+    configureUploader?: (
+      uppy: unknown,
+      context: VueFinderUploaderContext
+    ) => void;
+  }
 ): VueFinderDriver {
   return createVueFinderDriver({
     repository,

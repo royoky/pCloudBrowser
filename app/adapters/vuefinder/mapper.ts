@@ -119,7 +119,7 @@ export function mapFolderEntityToFsData(
   );
 
   // Sort children: folders first, then files, both alphabetically
-  children.sort((a, b) => {
+  children.sort((a: VueFinderDirEntry, b: VueFinderDirEntry) => {
     // Folders come before files
     if (a.type !== b.type) {
       return a.type === 'dir' ? -1 : 1;
@@ -150,7 +150,7 @@ export function mapFileSystemItemsToFsData(
   );
 
   // Sort: folders first, then files, both alphabetically
-  files.sort((a, b) => {
+  files.sort((a: VueFinderDirEntry, b: VueFinderDirEntry) => {
     if (a.type !== b.type) {
       return a.type === 'dir' ? -1 : 1;
     }

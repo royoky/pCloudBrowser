@@ -193,7 +193,7 @@ export interface VueFinderFileOperationResult {
   storages: string[];
   
   /** Whether the current path is read-only */
-  read_only: boolean;
+  read_only?: boolean;
   
   /** Current directory name/path */
   dirname: string;

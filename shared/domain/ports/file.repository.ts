@@ -17,6 +17,9 @@ import type {
   FileSystemItem,
 } from '../models/file-system.entity';
 
+// Re-export types for convenience
+export type { FileEntity, FolderEntity, FileSystemItem };
+
 /**
  * Parameters for listing items in a directory
  */

@@ -141,9 +141,7 @@ export class ApiFileRepository implements FileRepository {
     name: string
   ): Promise<FileEntity> {
     try {
-      // For file uploads, we need to use FormData or Base64 encoding
-      // This is a simplified implementation
-      
+      // For file uploads, we need to use FormData
       const formData = new FormData();
       formData.append('parentPath', parentPath);
       formData.append('name', name);
@@ -153,9 +151,11 @@ export class ApiFileRepository implements FileRepository {
       if (file instanceof Blob) {
         blob = file;
       } else if (file instanceof ArrayBuffer) {
-        blob = new Blob([file]);
+        blob = new Blob([file as unknown as ArrayBuffer]);
+      } else if (file instanceof Uint8Array) {
+        blob = new Blob([file as unknown as ArrayBuffer]);
       } else {
-        blob = new Blob([file.buffer]);
+        throw new Error('Unsupported file type for upload');
       }
       
       formData.append('file', blob, name);

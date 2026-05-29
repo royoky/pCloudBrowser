@@ -23,7 +23,9 @@ import type {
   SearchOptions,
 } from '../../../shared/domain/ports/file.repository';
 
-import type { PCloudClient } from './client';
+export type { FileRepository };
+
+import { PCloudClient } from './client';
 import type {
   PCloudListFolderResponse,
   PCloudCreateFolderResponse,
@@ -197,7 +199,18 @@ export class PCloudFileRepository implements FileRepository {
     try {
       const response = await this.client.getMetadata(path);
       const item = response.metadata;
-      const id = item.isfolder ? item.folderid.toString() : item.fileid.toString();
+      
+      // Use type-safe property access based on isfolder discriminator
+      // Both PCloudFolderMetadata and PCloudFolderContents have folderid
+      // PCloudFileMetadata has fileid
+      let id: string;
+      if (item.isfolder) {
+        // For folders, folderid is available (from PCloudFolderMetadata)
+        id = (item as unknown as { folderid: number }).folderid.toString();
+      } else {
+        // For files, fileid is available (from PCloudFileMetadata)
+        id = (item as unknown as { fileid: number }).fileid.toString();
+      }
       
       // Cache the result
       this.pathIdCache.set(path, id);
@@ -487,7 +500,8 @@ export class PCloudFileRepository implements FileRepository {
     const items: FileSystemItem[] = [];
     const startPath = options.path ?? '/';
     
-    async function searchRecursive(currentPath: string): Promise<void> {
+    // Use a bound function to maintain 'this' context
+    const searchRecursive = async (currentPath: string): Promise<void> => {
       const folder = await this.list(currentPath);
       
       for (const child of folder.children ?? []) {
@@ -501,7 +515,7 @@ export class PCloudFileRepository implements FileRepository {
           await searchRecursive(child.path);
         }
       }
-    }
+    };
 
     await searchRecursive(startPath);
     

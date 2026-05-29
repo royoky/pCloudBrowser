@@ -12,8 +12,9 @@ export {
   createVueFinderDriver,
   createPCloudVueFinderDriver,
   type VueFinderDriverConfig,
-  type PCloudVueFinderDriverConfig,
 } from './driver';
+
+export type { VueFinderDriver } from '../../../shared/types/vuefinder';
 
 export {
   mapFileEntityToDirEntry,

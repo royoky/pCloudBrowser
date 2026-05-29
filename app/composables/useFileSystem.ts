@@ -11,10 +11,10 @@
  * - Error Handling: Consistent error handling
  */
 
-import type { FileRepository } from '../clients/api.repository';
-import type { VueFinderDriver } from '../adapters/vuefinder/driver';
+import type { FileRepository } from '../../shared/domain/ports/file.repository';
+import type { VueFinderDriver } from '../adapters/vuefinder';
 import { ApiFileRepository } from '../clients/api.repository';
-import { createPCloudVueFinderDriver } from '../adapters/vuefinder/driver';
+import { createPCloudVueFinderDriver } from '../adapters/vuefinder';
 
 /**
  * Singleton repository instance
