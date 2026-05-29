@@ -7,21 +7,21 @@ import type {
   PCloudUserInfo,
 } from '~~/server/models/pcloud-api'
 
-import type { User } from '#auth-utils'
-
 import type {
   CloudFile,
   CloudFolder,
   CloudItem,
   CloudItemCapabilities,
   MiniCloudFolder,
-} from '../../shared/models/cloud-item'
+} from '~~/shared/models/cloud-item'
+
+import type { User } from '#auth-utils'
+import { getFileCategory } from '~~/shared/utils/file-categories'
 /**
  * pCloud to Cloud Item Mapper
  *
  * Converts pCloud-specific API responses to provider-agnostic CloudItem models
  */
-import { getFileCategory } from '../../shared/utils/file-categories'
 
 export function mapPCloudItemToCloudItem(
   item: PCloudFileMetadata | PCloudFolderMetadata,

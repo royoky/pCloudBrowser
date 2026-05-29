@@ -34,10 +34,4 @@ export default defineNuxtConfig({
       openAPI: true,
     },
   },
-
-  // Build configuration for VueFinder
-  build: {
-    // Transpile VueFinder for better compatibility
-    transpile: ['vuefinder'],
-  },
 })

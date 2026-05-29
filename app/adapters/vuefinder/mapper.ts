@@ -1,9 +1,9 @@
 /**
  * VueFinder Mapper
- * 
+ *
  * Maps domain entities to VueFinder's expected data structures.
  * These are PURE FUNCTIONS with no side effects.
- * 
+ *
  * Clean Code Principles Applied:
  * - Single Responsibility: Each function does one mapping
  * - Pure Functions: No side effects, same input always gives same output
@@ -13,16 +13,16 @@
 
 import type {
   FileEntity,
-  FolderEntity,
   FileSystemItem,
-} from '../../../shared/domain/models/file-system.entity';
+  FolderEntity,
+} from '~~/shared/domain/models/file-system.entity'
 
 import type {
   VueFinderDirEntry,
   VueFinderFsData,
-} from '../../../shared/types/vuefinder';
+} from '~~/shared/types/vuefinder'
 
-import { isFile, isFolder, FileSystemPath } from '../../../shared/domain/models/file-system.entity';
+import { FileSystemPath, isFile } from '~~/shared/domain/models/file-system.entity'
 
 /**
  * Previewable MIME type prefixes
@@ -35,15 +35,15 @@ const PREVIEWABLE_MIME_TYPES = [
   'text/',
   'application/pdf',
   'application/json',
-] as const;
+] as const
 
 /**
  * Checks if a file can be previewed based on its MIME type
  */
 function canPreview(mimeType: string): boolean {
   return PREVIEWABLE_MIME_TYPES.some(type =>
-    mimeType.startsWith(type) || mimeType === type
-  );
+    mimeType.startsWith(type) || mimeType === type,
+  )
 }
 
 /**
@@ -51,7 +51,7 @@ function canPreview(mimeType: string): boolean {
  */
 export function mapFileEntityToDirEntry(
   file: FileEntity,
-  storage: string
+  storage: string,
 ): VueFinderDirEntry {
   return {
     dir: FileSystemPath.getParent(file.path),
@@ -68,7 +68,7 @@ export function mapFileEntityToDirEntry(
     previewUrl: canPreview(file.mimeType) ? undefined : undefined,
     // Note: previewUrl is intentionally left undefined here
     // It will be set by the driver's getPreviewUrl method when needed
-  };
+  }
 }
 
 /**
@@ -76,7 +76,7 @@ export function mapFileEntityToDirEntry(
  */
 export function mapFolderEntityToDirEntry(
   folder: FolderEntity,
-  storage: string
+  storage: string,
 ): VueFinderDirEntry {
   return {
     dir: FileSystemPath.getParent(folder.path),
@@ -90,7 +90,7 @@ export function mapFolderEntityToDirEntry(
     mime_type: null,
     read_only: false, // TODO: Determine from folder permissions
     visibility: 'private', // TODO: Determine from folder sharing settings
-  };
+  }
 }
 
 /**
@@ -98,12 +98,12 @@ export function mapFolderEntityToDirEntry(
  */
 export function mapFileSystemItemToDirEntry(
   item: FileSystemItem,
-  storage: string
+  storage: string,
 ): VueFinderDirEntry {
   if (isFile(item)) {
-    return mapFileEntityToDirEntry(item, storage);
+    return mapFileEntityToDirEntry(item, storage)
   }
-  return mapFolderEntityToDirEntry(item, storage);
+  return mapFolderEntityToDirEntry(item, storage)
 }
 
 /**
@@ -111,29 +111,29 @@ export function mapFileSystemItemToDirEntry(
  */
 export function mapFolderEntityToFsData(
   folder: FolderEntity,
-  storage: string
+  storage: string,
 ): VueFinderFsData {
   // Map all children to DirEntry
   const children = (folder.children ?? []).map(child =>
-    mapFileSystemItemToDirEntry(child, storage)
-  );
+    mapFileSystemItemToDirEntry(child, storage),
+  )
 
   // Sort children: folders first, then files, both alphabetically
   children.sort((a: VueFinderDirEntry, b: VueFinderDirEntry) => {
     // Folders come before files
     if (a.type !== b.type) {
-      return a.type === 'dir' ? -1 : 1;
+      return a.type === 'dir' ? -1 : 1
     }
     // Same type: sort by name
-    return a.basename.localeCompare(b.basename);
-  });
+    return a.basename.localeCompare(b.basename)
+  })
 
   return {
     storages: [storage],
     dirname: folder.path,
     files: children,
     read_only: false, // TODO: Determine from folder permissions
-  };
+  }
 }
 
 /**
@@ -143,26 +143,26 @@ export function mapFolderEntityToFsData(
 export function mapFileSystemItemsToFsData(
   items: FileSystemItem[],
   dirname: string,
-  storage: string
+  storage: string,
 ): VueFinderFsData {
   const files = items.map(item =>
-    mapFileSystemItemToDirEntry(item, storage)
-  );
+    mapFileSystemItemToDirEntry(item, storage),
+  )
 
   // Sort: folders first, then files, both alphabetically
   files.sort((a: VueFinderDirEntry, b: VueFinderDirEntry) => {
     if (a.type !== b.type) {
-      return a.type === 'dir' ? -1 : 1;
+      return a.type === 'dir' ? -1 : 1
     }
-    return a.basename.localeCompare(b.basename);
-  });
+    return a.basename.localeCompare(b.basename)
+  })
 
   return {
     storages: [storage],
     dirname,
     files,
     read_only: false,
-  };
+  }
 }
 
 /**
@@ -181,5 +181,5 @@ export function createRootDirEntry(storage: string): VueFinderDirEntry {
     mime_type: null,
     read_only: false,
     visibility: 'private',
-  };
+  }
 }

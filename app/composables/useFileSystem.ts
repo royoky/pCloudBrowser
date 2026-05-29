@@ -1,9 +1,9 @@
 /**
  * File System Composable
- * 
+ *
  * Provides access to the file system repository and VueFinder driver.
  * This is the main entry point for file system operations in the frontend.
- * 
+ *
  * Clean Code Principles Applied:
  * - Single Responsibility: Only provides file system access
  * - Lazy Initialization: Driver is created on first use
@@ -11,22 +11,22 @@
  * - Error Handling: Consistent error handling
  */
 
-import type { FileRepository } from '../../shared/domain/ports/file.repository';
-import type { VueFinderDriver } from '../adapters/vuefinder';
-import { ApiFileRepository } from '../clients/api.repository';
-import { createPCloudVueFinderDriver } from '../adapters/vuefinder';
+import type { VueFinderDriver } from '~~/app/adapters/vuefinder'
+import type { FileRepository } from '~~/shared/domain/ports/file.repository'
+import { createPCloudVueFinderDriver } from '~~/app/adapters/vuefinder'
+import { ApiFileRepository } from '~~/app/clients/api.repository'
 
 /**
  * Singleton repository instance
  * Created lazily on first use
  */
-let repositoryInstance: FileRepository | null = null;
+let repositoryInstance: FileRepository | null = null
 
 /**
  * Singleton driver instance
  * Created lazily on first use
  */
-let driverInstance: VueFinderDriver | null = null;
+let driverInstance: VueFinderDriver | null = null
 
 /**
  * Gets the file system repository
@@ -34,9 +34,9 @@ let driverInstance: VueFinderDriver | null = null;
  */
 export function useFileRepository(): FileRepository {
   if (!repositoryInstance) {
-    repositoryInstance = new ApiFileRepository('/api/files');
+    repositoryInstance = new ApiFileRepository('/api/files')
   }
-  return repositoryInstance;
+  return repositoryInstance
 }
 
 /**
@@ -45,12 +45,12 @@ export function useFileRepository(): FileRepository {
  */
 export function useVueFinderDriver(): VueFinderDriver {
   if (!driverInstance) {
-    const repository = useFileRepository();
+    const repository = useFileRepository()
     driverInstance = createPCloudVueFinderDriver(repository, {
       storageName: 'pcloud',
-    });
+    })
   }
-  return driverInstance;
+  return driverInstance
 }
 
 /**
@@ -58,8 +58,8 @@ export function useVueFinderDriver(): VueFinderDriver {
  * Useful for testing or when user logs out/in
  */
 export function resetFileSystem(): void {
-  repositoryInstance = null;
-  driverInstance = null;
+  repositoryInstance = null
+  driverInstance = null
 }
 
 /**
@@ -67,12 +67,12 @@ export function resetFileSystem(): void {
  * Can be used in Vue components
  */
 export function useFileSystem() {
-  const repository = useFileRepository();
-  const driver = useVueFinderDriver();
+  const repository = useFileRepository()
+  const driver = useVueFinderDriver()
 
   return {
     repository,
     driver,
     reset: resetFileSystem,
-  };
+  }
 }

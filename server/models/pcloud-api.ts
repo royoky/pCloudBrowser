@@ -3,7 +3,7 @@
  * Based on pCloud HTTP JSON Protocol
  */
 
-import { PCloudResultCode } from '../constants/pcloud-result-codes'
+import { PCloudResultCode } from '~~/server/constants/pcloud-result-codes'
 
 // 1. Base Response Shape
 // pCloud always returns a 'result' number. If it's not 0, it includes an 'error' string.

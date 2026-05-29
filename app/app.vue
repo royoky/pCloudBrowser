@@ -1,4 +1,8 @@
 <script setup lang="ts">
+// Import VueFinder CSS
+// We import it here so it's available globally
+import 'vuefinder/dist/style.css'
+
 useHead({
   title: 'pCloud Browser',
   link: [
@@ -9,10 +13,6 @@ useHead({
     },
   ],
 })
-
-// Import VueFinder CSS
-// We import it here so it's available globally
-import 'vuefinder/dist/style.css'
 </script>
 
 <template>

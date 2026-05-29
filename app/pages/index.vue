@@ -1,29 +1,27 @@
 <script setup lang="ts">
-import { VueFinder } from 'vuefinder';
-import type { Driver } from 'vuefinder';
-import { useVueFinderDriver } from '~~/app/composables/useFileSystem';
+import type { Driver } from 'vuefinder'
 
-const { loggedIn } = useUserSession();
+const { loggedIn } = useUserSession()
 
 // Get the VueFinder driver from our composable
 // We use a type assertion because our driver implementation uses local types
 // that are compatible with VueFinder's Driver interface
-const driver = useVueFinderDriver() as unknown as Driver;
+const driver = useVueFinderDriver() as unknown as Driver
 
 // Configuration for VueFinder
 const vueFinderConfig = {
   // Theme settings
   theme: 'light', // Will be controlled by the app's color mode
-  
+
   // View settings
   view: 'grid' as 'grid' | 'list', // Default view
-  
+
   // Persist settings
   persist: true,
-  
+
   // Available storages
   storages: ['pcloud'],
-};
+}
 
 // Features configuration
 const features = {
@@ -34,63 +32,75 @@ const features = {
   delete: true,
   copy: true,
   move: true,
-  
+
   // View options
   search: true,
   preview: true,
-  
+
   // Disabled features
   edit: false, // File editing
   archive: false, // Creating archives
   unarchive: false, // Extracting archives
-};
+}
 
 // Handle color mode changes
-const colorMode = useColorMode();
+const colorMode = useColorMode()
 
 // Watch for color mode changes and update VueFinder
-watch(() => colorMode.value, (newMode) => {
+watch(() => colorMode.value, () => {
   // VueFinder will automatically adapt to the app's CSS variables
   // which are controlled by Nuxt's color mode
-}, { immediate: true });
+}, { immediate: true })
 
 // Handle errors from VueFinder
-const handleError = (error: unknown) => {
-  console.error('VueFinder error:', error);
+function handleError(_error: unknown) {
   // TODO: Show error to user
-};
+  // Error is handled by VueFinder's built-in error display
+}
 
 // Handle ready event
-const handleReady = () => {
-  console.log('VueFinder is ready');
-};
+function handleReady() {
+  // VueFinder is initialized and ready to use
+}
 </script>
 
 <template>
   <div class="file-explorer-container">
-    <!-- VueFinder Component - only show when logged in -->
-    <VueFinder
-      v-if="loggedIn"
-      id="pcloud-browser"
-      :driver="driver"
-      :config="vueFinderConfig"
-      :features="features"
-      selection-mode="multiple"
-      @ready="handleReady"
-      @error="handleError"
-    />
+    <!-- VueFinder Component - client-only due to browser dependencies -->
+    <ClientOnly>
+      <VueFinder
+        v-if="loggedIn"
+        id="pcloud-browser"
+        :driver="driver"
+        :config="vueFinderConfig"
+        :features="features"
+        selection-mode="multiple"
+        @ready="handleReady"
+        @error="handleError"
+      />
 
-    <!-- Login prompt for when user is not logged in -->
-    <div v-else class="login-prompt">
-      <a href="/auth/pcloud" class="login-button">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M15 6v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3Z" />
-          <path d="M18 12h3" />
-          <path d="M21 9v6" />
-        </svg>
-        <span>Login with pCloud</span>
-      </a>
-    </div>
+      <!-- Login prompt for when user is not logged in -->
+      <div v-else class="login-prompt">
+        <a href="/auth/pcloud" class="login-button">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M15 6v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3Z" />
+            <path d="M18 12h3" />
+            <path d="M21 9v6" />
+          </svg>
+          <span>Login with pCloud</span>
+        </a>
+      </div>
+    </ClientOnly>
   </div>
 </template>
 
