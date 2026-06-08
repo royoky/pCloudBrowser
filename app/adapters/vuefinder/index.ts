@@ -1,26 +1,11 @@
 /**
- * VueFinder Adapter Module
+ * VueFinder client adapter — public surface.
  *
- * Exports all VueFinder adapter components for use in the application.
- *
- * Clean Code Principles Applied:
- * - Single Responsibility: This file only exports, doesn't implement
- * - Clear Dependencies: Explicit exports make module dependencies clear
+ * Translates VueFinder's Driver interface to the neutral `/api/{provider}/*`
+ * contract. This is the only UI-library-coupled module in the app.
  */
 
-export {
-  createPCloudVueFinderDriver,
-  createVueFinderDriver,
-  type VueFinderDriverConfig,
-} from './driver'
-
-export {
-  createRootDirEntry,
-  mapFileEntityToDirEntry,
-  mapFileSystemItemsToFsData,
-  mapFileSystemItemToDirEntry,
-  mapFolderEntityToDirEntry,
-  mapFolderEntityToFsData,
-} from './mapper'
-
+export { createVueFinderDriver } from './driver'
+export { toDirEntry, toFsData } from './mapper'
+export { neutralParent, toNeutralPath, toVueFinderPath } from './path'
 export type { VueFinderDriver } from '~~/shared/types/vuefinder'

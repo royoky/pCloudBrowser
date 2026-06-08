@@ -1,8 +1,4 @@
 <script setup lang="ts">
-// Import VueFinder CSS
-// We import it here so it's available globally
-import 'vuefinder/dist/style.css'
-
 useHead({
   title: 'pCloud Browser',
   link: [
@@ -16,25 +12,10 @@ useHead({
 </script>
 
 <template>
-  <div class="app-container">
+  <UApp>
     <AppHeader />
-    <main class="main-content">
+    <UMain>
       <NuxtPage />
-    </main>
-  </div>
+    </UMain>
+  </UApp>
 </template>
-
-<style>
-/* Global styles for the application */
-.app-container {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-.main-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-</style>

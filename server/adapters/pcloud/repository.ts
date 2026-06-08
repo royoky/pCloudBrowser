@@ -153,6 +153,7 @@ export class PCloudFileRepository implements FileRepository {
       modifiedAt: new Date(pcloudItem.modified),
       itemCount: children.length,
       isLoaded: true,
+      children,
     }
   }
 

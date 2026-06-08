@@ -1,185 +1,60 @@
 /**
- * VueFinder Mapper
+ * Neutral DTO -> VueFinder mapper (client side).
  *
- * Maps domain entities to VueFinder's expected data structures.
- * These are PURE FUNCTIONS with no side effects.
- *
- * Clean Code Principles Applied:
- * - Single Responsibility: Each function does one mapping
- * - Pure Functions: No side effects, same input always gives same output
- * - Meaningful Names: Functions clearly express their purpose
- * - Small: Each function is focused and minimal
+ * The inverse of the server presenter: turns neutral wire DTOs into the shapes
+ * VueFinder renders. Pure functions. ISO timestamps become epoch-ms here, since
+ * VueFinder's `last_modified` is a number.
  */
 
 import type {
-  FileEntity,
-  FileSystemItem,
-  FolderEntity,
-} from '~~/shared/domain/models/file-system.entity'
+  FileSystemItemDto,
+  FolderDto,
+} from '~~/shared/contracts/file-system.dto'
 
 import type {
   VueFinderDirEntry,
   VueFinderFsData,
 } from '~~/shared/types/vuefinder'
 
-import { FileSystemPath, isFile } from '~~/shared/domain/models/file-system.entity'
+import { neutralParent, toVueFinderPath } from './path'
 
-/**
- * Previewable MIME type prefixes
- * Files with these MIME types can be previewed in VueFinder
- */
-const PREVIEWABLE_MIME_TYPES = [
-  'image/',
-  'video/',
-  'audio/',
-  'text/',
-  'application/pdf',
-  'application/json',
-] as const
-
-/**
- * Checks if a file can be previewed based on its MIME type
- */
-function canPreview(mimeType: string): boolean {
-  return PREVIEWABLE_MIME_TYPES.some(type =>
-    mimeType.startsWith(type) || mimeType === type,
-  )
-}
-
-/**
- * Maps a domain FileEntity to a VueFinder DirEntry
- */
-export function mapFileEntityToDirEntry(
-  file: FileEntity,
-  storage: string,
-): VueFinderDirEntry {
-  return {
-    dir: FileSystemPath.getParent(file.path),
-    basename: file.name,
-    extension: file.extension,
-    path: `${storage}:${file.path}`,
+/** Maps a single neutral item DTO to a VueFinder directory entry. */
+export function toDirEntry(storage: string, dto: FileSystemItemDto): VueFinderDirEntry {
+  const base = {
+    dir: toVueFinderPath(storage, neutralParent(dto.path)),
+    basename: dto.name,
+    path: toVueFinderPath(storage, dto.path),
     storage,
-    type: 'file',
-    file_size: file.size,
-    last_modified: file.modifiedAt.getTime(),
-    mime_type: file.mimeType,
-    read_only: false, // TODO: Determine from file permissions
-    visibility: 'private', // TODO: Determine from file sharing settings
-    previewUrl: canPreview(file.mimeType) ? undefined : undefined,
-    // Note: previewUrl is intentionally left undefined here
-    // It will be set by the driver's getPreviewUrl method when needed
-  }
-}
-
-/**
- * Maps a domain FolderEntity to a VueFinder DirEntry
- */
-export function mapFolderEntityToDirEntry(
-  folder: FolderEntity,
-  storage: string,
-): VueFinderDirEntry {
-  return {
-    dir: FileSystemPath.getParent(folder.path),
-    basename: folder.name,
-    extension: '',
-    path: `${storage}:${folder.path}`,
-    storage,
-    type: 'dir',
-    file_size: null,
-    last_modified: folder.modifiedAt.getTime(),
-    mime_type: null,
-    read_only: false, // TODO: Determine from folder permissions
-    visibility: 'private', // TODO: Determine from folder sharing settings
-  }
-}
-
-/**
- * Maps any FileSystemItem to a VueFinder DirEntry
- */
-export function mapFileSystemItemToDirEntry(
-  item: FileSystemItem,
-  storage: string,
-): VueFinderDirEntry {
-  if (isFile(item)) {
-    return mapFileEntityToDirEntry(item, storage)
-  }
-  return mapFolderEntityToDirEntry(item, storage)
-}
-
-/**
- * Maps a FolderEntity (with children) to VueFinder's FsData structure
- */
-export function mapFolderEntityToFsData(
-  folder: FolderEntity,
-  storage: string,
-): VueFinderFsData {
-  // Map all children to DirEntry
-  const children = (folder.children ?? []).map(child =>
-    mapFileSystemItemToDirEntry(child, storage),
-  )
-
-  // Sort children: folders first, then files, both alphabetically
-  children.sort((a: VueFinderDirEntry, b: VueFinderDirEntry) => {
-    // Folders come before files
-    if (a.type !== b.type) {
-      return a.type === 'dir' ? -1 : 1
-    }
-    // Same type: sort by name
-    return a.basename.localeCompare(b.basename)
-  })
-
-  return {
-    storages: [storage],
-    dirname: folder.path,
-    files: children,
-    read_only: false, // TODO: Determine from folder permissions
-  }
-}
-
-/**
- * Maps an array of FileSystemItem to VueFinder's FsData structure
- * Useful when you have a flat list of items without parent folder info
- */
-export function mapFileSystemItemsToFsData(
-  items: FileSystemItem[],
-  dirname: string,
-  storage: string,
-): VueFinderFsData {
-  const files = items.map(item =>
-    mapFileSystemItemToDirEntry(item, storage),
-  )
-
-  // Sort: folders first, then files, both alphabetically
-  files.sort((a: VueFinderDirEntry, b: VueFinderDirEntry) => {
-    if (a.type !== b.type) {
-      return a.type === 'dir' ? -1 : 1
-    }
-    return a.basename.localeCompare(b.basename)
-  })
-
-  return {
-    storages: [storage],
-    dirname,
-    files,
-    read_only: false,
-  }
-}
-
-/**
- * Creates a VueFinder DirEntry for the root folder
- */
-export function createRootDirEntry(storage: string): VueFinderDirEntry {
-  return {
-    dir: '',
-    basename: storage,
-    extension: '',
-    path: `${storage}:/`,
-    storage,
-    type: 'dir',
-    file_size: null,
-    last_modified: null,
-    mime_type: null,
+    last_modified: Date.parse(dto.modifiedAt),
     read_only: false,
     visibility: 'private',
+  }
+
+  if (dto.type === 'file') {
+    return {
+      ...base,
+      type: 'file',
+      extension: dto.extension,
+      file_size: dto.size,
+      mime_type: dto.mimeType,
+    }
+  }
+
+  return {
+    ...base,
+    type: 'dir',
+    extension: '',
+    file_size: null,
+    mime_type: null,
+  }
+}
+
+/** Maps a neutral folder listing to VueFinder's FsData. */
+export function toFsData(storage: string, folder: FolderDto): VueFinderFsData {
+  return {
+    storages: [storage],
+    dirname: toVueFinderPath(storage, folder.path),
+    files: (folder.children ?? []).map(child => toDirEntry(storage, child)),
+    read_only: false,
   }
 }

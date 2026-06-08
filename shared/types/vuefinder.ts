@@ -127,6 +127,9 @@ export interface VueFinderTransferParams {
 
   /** Full destination path where items should be copied/moved to */
   destination: string
+
+  /** The directory currently being viewed (used to refresh after the op) */
+  path?: string
 }
 
 /** Parameters for archive creation */

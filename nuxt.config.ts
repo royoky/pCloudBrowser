@@ -7,13 +7,11 @@ export default defineNuxtConfig({
     '@nuxt/eslint',
     '@vueuse/nuxt',
     'nuxt-auth-utils',
+    '@nuxt/ui',
   ],
 
-  // VueFinder CSS - we import it in our layout instead
-  // to have better control over when it's loaded
-  css: [
-    // VueFinder styles will be imported in app.vue or layout
-  ],
+  // VueFinder CSS
+  css: ['~/assets/css/main.css', 'vuefinder/dist/vuefinder.css'],
 
   runtimeConfig: {
     appClientSecret: '',

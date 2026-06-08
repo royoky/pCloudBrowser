@@ -8,9 +8,10 @@
  * - Clear Dependencies: Explicit exports make module dependencies clear
  */
 
-export { PCloudApiError, PCloudClient, PCloudClientConfig } from './client'
+export { PCloudApiError, PCloudClient } from './client'
+export type { PCloudClientConfig } from './client'
 export {
   createPCloudRepository,
   PCloudFileRepository,
-  PCloudRepositoryConfig,
 } from './repository'
+export type { PCloudRepositoryConfig } from './repository'

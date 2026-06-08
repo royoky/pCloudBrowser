@@ -16,10 +16,13 @@
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
+    "@iconify-json/lucide": "^1.2.111",
+    "@nuxt/ui": "^4.8.1",
     "@nuxthub/core": "^0.10.7",
     "luxon": "^3.7.2",
     "nuxt": "^4.4.6",
     "nuxt-auth-utils": "0.5.29",
+    "tailwindcss": "^4.3.0",
     "vue": "latest",
     "vuefinder": "^4.1.2",
     "zod": "^4.4.3"

@@ -1,120 +1,70 @@
 <script setup lang="ts">
-// Simple theme toggle using useLocalStorage for client-side persistence
-const isDark = useLocalStorage('theme', false)
+import type { NavigationMenuItem } from '@nuxt/ui'
 
-// Update data-theme attribute when theme changes
-watch(isDark, (newValue) => {
-  if (import.meta.client) {
-    document.documentElement.setAttribute(
-      'data-theme',
-      newValue ? 'dark' : 'light',
-    )
-  }
-}, { immediate: true })
+// Custom color-mode toggle instead of <UColorModeButton />.
+// That button swaps its sun/moon icons purely via CSS
+// (`hidden dark:inline-block`), which VueFinder's global, unlayered
+// `.hidden { display: none }` clobbers — leaving the moon stuck hidden.
+// Driving a single icon from JS sidesteps that cascade entirely.
+// We use @nuxtjs/color-mode's useColorMode() (the same state Nuxt UI relies
+// on), not VueUse's, to avoid running two competing color-mode systems.
+const colorMode = useColorMode()
+const isDark = computed({
+  get: () => colorMode.value === 'dark',
+  set: (value) => {
+    colorMode.preference = value ? 'dark' : 'light'
+  },
+})
 
-function toggleTheme() {
-  isDark.value = !isDark.value
-}
+const items = computed<NavigationMenuItem[]>(() => [{
+  label: 'Figma',
+  icon: 'i-simple-icons-figma',
+  to: 'https://go.nuxt.com/figma-ui',
+  target: '_blank',
+}, {
+  label: 'Releases',
+  icon: 'i-lucide-rocket',
+  to: 'https://github.com/nuxt/ui/releases',
+  target: '_blank',
+}])
 </script>
 
 <template>
-  <header class="app-header">
-    <div class="header-left">
-      <NuxtLink to="/" class="app-logo">
-        pCloud Browser
-      </NuxtLink>
-    </div>
-    <div class="header-right">
-      <button
-        class="theme-toggle"
-        :aria-label="`Toggle ${isDark ? 'light' : 'dark'} mode`"
-        @click="toggleTheme"
-      >
-        <svg
-          v-if="isDark"
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <circle cx="12" cy="12" r="5" />
-          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42" />
-          <path d="M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-        </svg>
-        <svg
-          v-else
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-        </svg>
-      </button>
-    </div>
-  </header>
+  <UHeader toggle-side="left">
+    <template #title>
+      PCloudBrowser
+    </template>
+
+    <UNavigationMenu :items />
+
+    <template #right>
+      <ClientOnly>
+        <UButton
+          :icon="isDark ? 'i-lucide-moon' : 'i-lucide-sun'"
+          color="neutral"
+          variant="ghost"
+          :aria-label="`Switch to ${isDark ? 'light' : 'dark'} mode`"
+          @click="isDark = !isDark"
+        />
+        <template #fallback>
+          <UButton color="neutral" variant="ghost" disabled icon="i-lucide-sun" />
+        </template>
+      </ClientOnly>
+
+      <UTooltip text="Open on GitHub" :kbds="['meta', 'G']">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          to="https://github.com/nuxt/ui"
+          target="_blank"
+          icon="i-simple-icons-github"
+          aria-label="GitHub"
+        />
+      </UTooltip>
+    </template>
+
+    <template #body>
+      <UNavigationMenu :items orientation="vertical" class="-mx-2.5" />
+    </template>
+  </UHeader>
 </template>
-
-<style scoped>
-.app-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 1rem;
-  height: 64px;
-  background-color: var(--background);
-  border-bottom: 1px solid var(--border);
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-}
-
-.app-logo {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  text-decoration: none;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.theme-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: var(--text-primary);
-  border-radius: 50%;
-  transition: background-color 0.2s;
-}
-
-.theme-toggle:hover {
-  background-color: var(--surface-hover);
-}
-
-.theme-toggle svg {
-  width: 24px;
-  height: 24px;
-}
-</style>

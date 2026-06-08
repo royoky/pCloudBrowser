@@ -1,29 +1,18 @@
 <script setup lang="ts">
-import type { Driver } from 'vuefinder'
-
 const { loggedIn } = useUserSession()
 
-// Get the VueFinder driver from our composable
-// We use a type assertion because our driver implementation uses local types
-// that are compatible with VueFinder's Driver interface
-const driver = useVueFinderDriver() as unknown as Driver
+// VueFinder driver — the client adapter onto our neutral /api/pcloud/* API.
+const driver = useVueFinderDriver()
 
-// Configuration for VueFinder
-const vueFinderConfig = {
-  // Theme settings
-  theme: 'light', // Will be controlled by the app's color mode
+const colorMode = useColorMode()
 
-  // View settings
-  view: 'grid' as 'grid' | 'list', // Default view
-
-  // Persist settings
+const vueFinderConfig = computed(() => ({
+  theme: colorMode.value === 'dark' ? 'midnight' : 'silver',
+  view: 'grid' as 'grid' | 'list',
   persist: true,
-
-  // Available storages
   storages: ['pcloud'],
-}
+}))
 
-// Features configuration
 const features = {
   // File operations
   upload: true,
@@ -42,15 +31,6 @@ const features = {
   archive: false, // Creating archives
   unarchive: false, // Extracting archives
 }
-
-// Handle color mode changes
-const colorMode = useColorMode()
-
-// Watch for color mode changes and update VueFinder
-watch(() => colorMode.value, () => {
-  // VueFinder will automatically adapt to the app's CSS variables
-  // which are controlled by Nuxt's color mode
-}, { immediate: true })
 
 // Handle errors from VueFinder
 function handleError(_error: unknown) {
