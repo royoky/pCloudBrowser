@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ConfigDefaults } from 'vuefinder'
+
 const { loggedIn } = useUserSession()
 
 // VueFinder driver — the client adapter onto our neutral /api/pcloud/* API.
@@ -6,11 +8,13 @@ const driver = useVueFinderDriver()
 
 const colorMode = useColorMode()
 
-const vueFinderConfig = computed(() => ({
+const vueFinderConfig = computed<ConfigDefaults>(() => ({
   theme: colorMode.value === 'dark' ? 'midnight' : 'silver',
-  view: 'grid' as 'grid' | 'list',
+  view: 'grid',
   persist: true,
-  storages: ['pcloud'],
+  // Raise Uppy's client-side size guard. The real ceiling is the platform's
+  // request body limit (no hard limit on Node; ~100 MB on Workers).
+  maxFileSize: '100mb',
 }))
 
 const features = {

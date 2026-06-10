@@ -129,16 +129,22 @@ export interface FileRepository {
   createFolder: (parentPath: string, name: string) => Promise<FolderEntity>
 
   /**
-   * Uploads a new file
+   * Uploads a file.
+   *
+   * Note: Nitro's multipart parser buffers the entire request body before
+   * individual parts are accessible, so upload is inherently in-memory on
+   * the server. Size is bounded by the platform's request body limit.
    *
    * @param parentPath - Path to the parent directory
-   * @param file - The file to upload
-   * @returns Promise resolving to the created file
+   * @param fileData - File bytes
+   * @param name - File name
+   * @param mimeType - MIME type of the file
    */
   uploadFile: (
     parentPath: string,
-    file: Blob | ArrayBuffer | Uint8Array,
+    fileData: Uint8Array,
     name: string,
+    mimeType: string,
   ) => Promise<FileEntity>
 
   /**

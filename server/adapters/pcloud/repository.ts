@@ -315,24 +315,13 @@ export class PCloudFileRepository implements FileRepository {
 
   async uploadFile(
     parentPath: string,
-    _file: Blob | ArrayBuffer | Uint8Array,
-    _name: string,
+    fileData: Uint8Array,
+    name: string,
+    mimeType: string,
   ): Promise<FileEntity> {
-    // Note: pCloud uses a multi-step upload process
-    // For now, we'll need to use pCloud's upload API
-    // This is a simplified implementation
-
-    // Get parent folder ID
-    const _parentId = await this.pathToId(parentPath)
-
-    // pCloud upload is complex - it requires:
-    // 1. Get upload link
-    // 2. Upload to that link
-    // 3. Confirm upload
-
-    // For now, we'll throw a not-implemented error
-    // This would be implemented in a real app
-    throw new Error('File upload not yet implemented for pCloud adapter')
+    const folderId = await this.pathToId(parentPath)
+    const response = await this.client.uploadFile(folderId, name, mimeType, fileData)
+    return this.mapToFileEntity(response.metadata[0]!, parentPath)
   }
 
   async delete(path: string, _permanent: boolean = false): Promise<FileOperationResult> {

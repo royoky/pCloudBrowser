@@ -19,6 +19,8 @@
     "@iconify-json/lucide": "^1.2.111",
     "@nuxt/ui": "^4.8.1",
     "@nuxthub/core": "^0.10.7",
+    "@uppy/xhr-upload": "^5.2.0",
+    "busboy": "^1.6.0",
     "luxon": "^3.7.2",
     "nuxt": "^4.4.6",
     "nuxt-auth-utils": "0.5.29",
@@ -30,6 +32,7 @@
   "devDependencies": {
     "@antfu/eslint-config": "^9.0.0",
     "@nuxt/eslint": "^1.15.2",
+    "@types/busboy": "^1.5.4",
     "@types/luxon": "^3.7.1",
     "@vueuse/nuxt": "^14.3.0",
     "eslint": "^10.4.0",

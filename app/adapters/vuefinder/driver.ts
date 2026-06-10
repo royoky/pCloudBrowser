@@ -31,6 +31,8 @@ import type {
   VueFinderTransferParams,
 } from '~~/shared/types/vuefinder'
 
+import XHRUpload from '@uppy/xhr-upload'
+
 import { toDirEntry, toFsData } from './mapper'
 import { toNeutralPath } from './path'
 
@@ -127,6 +129,33 @@ export function createVueFinderDriver(storage: string): VueFinderDriver {
 
     getPreviewUrl(params: { path: string }): string {
       return `${base}/preview?path=${encodeURIComponent(toNeutral(params.path))}`
+    },
+
+    // Wire Uppy's XHR-upload plugin to our neutral upload endpoint.
+    // VueFinder sets the target path as per-file meta before each upload.
+    // uppy is typed as `unknown` in our local VueFinderDriver definition
+    // (we don't take a dep on @uppy/core). Cast to any — it's a VueFinder
+    // internal and we access only well-known Uppy methods.
+    configureUploader(uppyInstance, context) {
+      const uppy = uppyInstance as any
+
+      // Register XHR upload pointed at our neutral upload endpoint.
+      // VueFinder passes a fresh Uppy instance with no plugins; we own setup.
+      uppy.use(XHRUpload, {
+        endpoint: `${base}/upload`,
+        fieldName: 'file',
+        bundle: false,
+        formData: true,
+      })
+
+      // Stamp the current target path onto every file just before upload
+      // so the server knows which folder to upload into.
+      uppy.on('upload', () => {
+        const targetPath = toNeutral(context.getTargetPath())
+        uppy.getFiles().forEach((file: any) =>
+          uppy.setFileMeta(file.id, { path: targetPath }),
+        )
+      })
     },
 
     // Disabled in the UI (features.archive / edit = false). Reject loudly

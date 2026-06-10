@@ -22,6 +22,7 @@ import type {
   PCloudListFolderResponse,
   PCloudRenameFileResponse,
   PCloudRenameFolderResponse,
+  PCloudUploadResponse,
 } from '~~/server/models/pcloud-api'
 
 import { PCLOUD_API_ENDPOINTS } from '~~/server/constants/pcloud-endpoints'
@@ -384,6 +385,40 @@ export class PCloudClient {
     })
 
     return this.handleResponse(response)
+  }
+
+  /**
+   * Uploads a file to pCloud.
+   *
+   * Uses FormData so the body is standard multipart/form-data that Node's
+   * native fetch handles reliably. pCloud requires folderid and nopartial
+   * to appear before the file part, which FormData guarantees by append order.
+   */
+  async uploadFile(
+    folderId: string | number,
+    name: string,
+    mimeType: string,
+    fileData: Uint8Array,
+  ): Promise<PCloudUploadResponse> {
+    const url = `${this.baseUrl}${PCLOUD_API_ENDPOINTS.FILES.UPLOAD}`
+
+    const formData = new FormData()
+    formData.append('folderid', folderId.toString())
+    formData.append('nopartial', '1')
+    formData.append('file', new Blob([fileData.buffer as ArrayBuffer], { type: mimeType }), name)
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${this.accessToken}` },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      throw new Error(`pCloud upload HTTP error: ${response.status} ${response.statusText}`)
+    }
+
+    const json = await response.json() as PCloudUploadResponse
+    return this.handleResponse(json)
   }
 
   /**
