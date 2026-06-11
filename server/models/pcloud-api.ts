@@ -169,6 +169,30 @@ export interface PCloudRenameFileResponse extends PCloudBaseResponse {
   metadata: PCloudFileMetadata
 }
 
+/** Response from getthumblink */
+export interface PCloudThumbLinkResponse extends PCloudBaseResponse {
+  size: string
+  path: string
+  expires: string
+  hosts: string[]
+}
+
+/** Single entry in getthumbslinks response */
+export interface PCloudThumbEntry {
+  fileid: number
+  result: number
+  path?: string
+  hosts?: string[]
+  expires?: string
+  size?: string
+  error?: string
+}
+
+/** Response from getthumbslinks */
+export interface PCloudThumbsLinksResponse extends PCloudBaseResponse {
+  thumbs: PCloudThumbEntry[]
+}
+
 // 4. Type Guards and Helpers
 export function isPCloudSuccess(response: PCloudBaseResponse): boolean {
   return response.result === PCloudResultCode.SUCCESS // Assuming SUCCESS is 0

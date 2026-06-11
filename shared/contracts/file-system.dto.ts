@@ -40,6 +40,8 @@ export interface FileDto extends FileSystemItemBaseDto {
   /** Lowercase extension without the dot, "" when none. */
   extension: string
   hasThumbnail?: boolean
+  /** Pre-fetched thumbnail CDN URL (populated during folder listing). */
+  thumbnailUrl?: string
 }
 
 export interface FolderDto extends FileSystemItemBaseDto {

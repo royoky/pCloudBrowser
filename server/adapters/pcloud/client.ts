@@ -22,9 +22,12 @@ import type {
   PCloudListFolderResponse,
   PCloudRenameFileResponse,
   PCloudRenameFolderResponse,
+  PCloudThumbLinkResponse,
+  PCloudThumbsLinksResponse,
   PCloudUploadResponse,
 } from '~~/server/models/pcloud-api'
 
+import { $fetch } from 'ofetch'
 import { PCLOUD_API_ENDPOINTS } from '~~/server/constants/pcloud-endpoints'
 import { getPCloudErrorMessage, isPCloudSuccess } from '~~/server/models/pcloud-api'
 
@@ -86,6 +89,23 @@ export class PCloudClient {
     }
   }
 
+  /** Wraps $fetch with console logging for every pCloud API call. */
+  private async call<T extends PCloudBaseResponse>(
+    endpoint: string,
+    params: Record<string, unknown>,
+  ): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`
+    console.info('[pCloud] →', endpoint)
+    const response = await $fetch<T>(url, {
+      method: 'GET',
+      headers: this.headers,
+      params,
+      timeout: this.timeout,
+    })
+    console.info('[pCloud] ←', endpoint, { result: response.result })
+    return response
+  }
+
   /**
    * Helper method to handle pCloud API responses
    * Throws PCloudApiError for unsuccessful responses
@@ -144,247 +164,82 @@ export class PCloudClient {
     return codeMap[result] ?? 500 // Default to internal server error
   }
 
-  /**
-   * Lists the contents of a folder
-   */
   async listFolder(folderId: string | number): Promise<PCloudListFolderResponse> {
-    const url = `${this.baseUrl}${PCLOUD_API_ENDPOINTS.FILES.LIST}`
-
-    const response = await $fetch<PCloudListFolderResponse>(url, {
-      method: 'GET',
-      headers: this.headers,
-      params: { folderid: folderId },
-      timeout: this.timeout,
-    })
-
-    return this.handleResponse(response)
+    return this.handleResponse(
+      await this.call<PCloudListFolderResponse>(PCLOUD_API_ENDPOINTS.FILES.LIST, { folderid: folderId }),
+    )
   }
 
-  /**
-   * Creates a new folder
-   */
   async createFolder(parentId: string | number, name: string): Promise<PCloudCreateFolderResponse> {
-    const url = `${this.baseUrl}${PCLOUD_API_ENDPOINTS.FILES.CREATE_FOLDER}`
-
-    const response = await $fetch<PCloudCreateFolderResponse>(url, {
-      method: 'GET',
-      headers: this.headers,
-      params: {
-        folderid: parentId,
-        name,
-      },
-      timeout: this.timeout,
-    })
-
-    return this.handleResponse(response)
+    return this.handleResponse(
+      await this.call<PCloudCreateFolderResponse>(PCLOUD_API_ENDPOINTS.FILES.CREATE_FOLDER, { folderid: parentId, name }),
+    )
   }
 
-  /**
-   * Renames a folder
-   */
-  async renameFolder(
-    folderId: string | number,
-    newName: string,
-  ): Promise<PCloudRenameFolderResponse> {
-    const url = `${this.baseUrl}${PCLOUD_API_ENDPOINTS.FILES.MOVE_FOLDER}`
-
-    const response = await $fetch<PCloudRenameFolderResponse>(url, {
-      method: 'GET',
-      headers: this.headers,
-      params: {
-        folderid: folderId,
-        toname: newName,
-      },
-      timeout: this.timeout,
-    })
-
-    return this.handleResponse(response)
+  async renameFolder(folderId: string | number, newName: string): Promise<PCloudRenameFolderResponse> {
+    return this.handleResponse(
+      await this.call<PCloudRenameFolderResponse>(PCLOUD_API_ENDPOINTS.FILES.MOVE_FOLDER, { folderid: folderId, toname: newName }),
+    )
   }
 
-  /**
-   * Moves a folder to a new location
-   */
-  async moveFolder(
-    folderId: string | number,
-    toFolderId: string | number,
-    newName?: string,
-  ): Promise<PCloudRenameFolderResponse> {
-    const url = `${this.baseUrl}${PCLOUD_API_ENDPOINTS.FILES.MOVE_FOLDER}`
-
-    const params: Record<string, string | number> = {
-      folderid: folderId,
-      tofolderid: toFolderId,
-    }
-
-    if (newName) {
+  async moveFolder(folderId: string | number, toFolderId: string | number, newName?: string): Promise<PCloudRenameFolderResponse> {
+    const params: Record<string, unknown> = { folderid: folderId, tofolderid: toFolderId }
+    if (newName)
       params.toname = newName
-    }
-
-    const response = await $fetch<PCloudRenameFolderResponse>(url, {
-      method: 'GET',
-      headers: this.headers,
-      params,
-      timeout: this.timeout,
-    })
-
-    return this.handleResponse(response)
+    return this.handleResponse(
+      await this.call<PCloudRenameFolderResponse>(PCLOUD_API_ENDPOINTS.FILES.MOVE_FOLDER, params),
+    )
   }
 
-  /**
-   * Deletes a folder recursively
-   */
   async deleteFolder(folderId: string | number): Promise<PCloudDeleteFolderRecursiveResponse> {
-    const url = `${this.baseUrl}${PCLOUD_API_ENDPOINTS.FILES.DELETE_FOLDER}`
-
-    const response = await $fetch<PCloudDeleteFolderRecursiveResponse>(url, {
-      method: 'GET',
-      headers: this.headers,
-      params: { folderid: folderId },
-      timeout: this.timeout,
-    })
-
-    return this.handleResponse(response)
+    return this.handleResponse(
+      await this.call<PCloudDeleteFolderRecursiveResponse>(PCLOUD_API_ENDPOINTS.FILES.DELETE_FOLDER, { folderid: folderId }),
+    )
   }
 
-  /**
-   * Copies a file
-   */
-  async copyFile(
-    fileId: string | number,
-    toFolderId: string | number,
-    newName?: string,
-  ): Promise<PCloudCopyFileResponse> {
-    const url = `${this.baseUrl}${PCLOUD_API_ENDPOINTS.FILES.COPY_FILE}`
-
-    const params: Record<string, string | number> = {
-      fileid: fileId,
-      tofolderid: toFolderId,
-    }
-
-    if (newName) {
+  async copyFile(fileId: string | number, toFolderId: string | number, newName?: string): Promise<PCloudCopyFileResponse> {
+    const params: Record<string, unknown> = { fileid: fileId, tofolderid: toFolderId }
+    if (newName)
       params.toname = newName
-    }
-
-    const response = await $fetch<PCloudCopyFileResponse>(url, {
-      method: 'GET',
-      headers: this.headers,
-      params,
-      timeout: this.timeout,
-    })
-
-    return this.handleResponse(response)
+    return this.handleResponse(
+      await this.call<PCloudCopyFileResponse>(PCLOUD_API_ENDPOINTS.FILES.COPY_FILE, params),
+    )
   }
 
-  /**
-   * Copies a folder
-   */
-  async copyFolder(
-    folderId: string | number,
-    toFolderId: string | number,
-    newName?: string,
-  ): Promise<PCloudCopyFolderResponse> {
-    const url = `${this.baseUrl}${PCLOUD_API_ENDPOINTS.FILES.COPY_FOLDER}`
-
-    const params: Record<string, string | number> = {
-      folderid: folderId,
-      tofolderid: toFolderId,
-    }
-
-    if (newName) {
+  async copyFolder(folderId: string | number, toFolderId: string | number, newName?: string): Promise<PCloudCopyFolderResponse> {
+    const params: Record<string, unknown> = { folderid: folderId, tofolderid: toFolderId }
+    if (newName)
       params.toname = newName
-    }
-
-    const response = await $fetch<PCloudCopyFolderResponse>(url, {
-      method: 'GET',
-      headers: this.headers,
-      params,
-      timeout: this.timeout,
-    })
-
-    return this.handleResponse(response)
+    return this.handleResponse(
+      await this.call<PCloudCopyFolderResponse>(PCLOUD_API_ENDPOINTS.FILES.COPY_FOLDER, params),
+    )
   }
 
-  /**
-   * Renames a file
-   */
-  async renameFile(
-    fileId: string | number,
-    newName: string,
-  ): Promise<PCloudRenameFileResponse> {
-    const url = `${this.baseUrl}${PCLOUD_API_ENDPOINTS.FILES.MOVE_FILE}`
-
-    const response = await $fetch<PCloudRenameFileResponse>(url, {
-      method: 'GET',
-      headers: this.headers,
-      params: {
-        fileid: fileId,
-        toname: newName,
-      },
-      timeout: this.timeout,
-    })
-
-    return this.handleResponse(response)
+  async renameFile(fileId: string | number, newName: string): Promise<PCloudRenameFileResponse> {
+    return this.handleResponse(
+      await this.call<PCloudRenameFileResponse>(PCLOUD_API_ENDPOINTS.FILES.MOVE_FILE, { fileid: fileId, toname: newName }),
+    )
   }
 
-  /**
-   * Moves a file to a new location
-   */
-  async moveFile(
-    fileId: string | number,
-    toFolderId: string | number,
-    newName?: string,
-  ): Promise<PCloudRenameFileResponse> {
-    const url = `${this.baseUrl}${PCLOUD_API_ENDPOINTS.FILES.MOVE_FILE}`
-
-    const params: Record<string, string | number> = {
-      fileid: fileId,
-      tofolderid: toFolderId,
-    }
-
-    if (newName) {
+  async moveFile(fileId: string | number, toFolderId: string | number, newName?: string): Promise<PCloudRenameFileResponse> {
+    const params: Record<string, unknown> = { fileid: fileId, tofolderid: toFolderId }
+    if (newName)
       params.toname = newName
-    }
-
-    const response = await $fetch<PCloudRenameFileResponse>(url, {
-      method: 'GET',
-      headers: this.headers,
-      params,
-      timeout: this.timeout,
-    })
-
-    return this.handleResponse(response)
+    return this.handleResponse(
+      await this.call<PCloudRenameFileResponse>(PCLOUD_API_ENDPOINTS.FILES.MOVE_FILE, params),
+    )
   }
 
-  /**
-   * Deletes a file
-   */
   async deleteFile(fileId: string | number): Promise<PCloudDeleteFileResponse> {
-    const url = `${this.baseUrl}${PCLOUD_API_ENDPOINTS.FILES.DELETE_FILE}`
-
-    const response = await $fetch<PCloudDeleteFileResponse>(url, {
-      method: 'GET',
-      headers: this.headers,
-      params: { fileid: fileId },
-      timeout: this.timeout,
-    })
-
-    return this.handleResponse(response)
+    return this.handleResponse(
+      await this.call<PCloudDeleteFileResponse>(PCLOUD_API_ENDPOINTS.FILES.DELETE_FILE, { fileid: fileId }),
+    )
   }
 
-  /**
-   * Gets a download link for a file
-   */
   async getFileLink(fileId: string | number): Promise<PCloudFileLinkResponse> {
-    const url = `${this.baseUrl}${PCLOUD_API_ENDPOINTS.FILES.DOWNLOAD}`
-
-    const response = await $fetch<PCloudFileLinkResponse>(url, {
-      method: 'GET',
-      headers: this.headers,
-      params: { fileid: fileId },
-      timeout: this.timeout,
-    })
-
-    return this.handleResponse(response)
+    return this.handleResponse(
+      await this.call<PCloudFileLinkResponse>(PCLOUD_API_ENDPOINTS.FILES.DOWNLOAD, { fileid: fileId }),
+    )
   }
 
   /**
@@ -407,6 +262,7 @@ export class PCloudClient {
     formData.append('nopartial', '1')
     formData.append('file', new Blob([fileData.buffer as ArrayBuffer], { type: mimeType }), name)
 
+    console.info('[pCloud] → POST', PCLOUD_API_ENDPOINTS.FILES.UPLOAD, { size: fileData.length })
     const response = await fetch(url, {
       method: 'POST',
       headers: { Authorization: `Bearer ${this.accessToken}` },
@@ -418,22 +274,37 @@ export class PCloudClient {
     }
 
     const json = await response.json() as PCloudUploadResponse
+    console.info('[pCloud] ← POST', PCLOUD_API_ENDPOINTS.FILES.UPLOAD, { result: json.result })
     return this.handleResponse(json)
   }
 
+  /** Returns a CDN link for a file thumbnail (same shape as getFileLink). */
+  async getThumbLink(fileId: string | number, size: string = '256x256'): Promise<PCloudThumbLinkResponse> {
+    return this.handleResponse(
+      await this.call<PCloudThumbLinkResponse>(PCLOUD_API_ENDPOINTS.THUMBNAILS.GET_LINK, { fileid: fileId, size }),
+    )
+  }
+
   /**
-   * Gets metadata for a file or folder
+   * Batch-fetches CDN thumbnail links for multiple files in a single call.
+   * pCloud connects to multiple storage servers simultaneously, making this
+   * more efficient than sequential getThumbLink calls.
    */
+  async getThumbsLinks(fileIds: string[], size: string = '256x256'): Promise<PCloudThumbsLinksResponse['thumbs']> {
+    const response = await this.call<PCloudThumbsLinksResponse>(
+      PCLOUD_API_ENDPOINTS.THUMBNAILS.GET_LINKS,
+      { fileids: fileIds.join(','), size },
+    )
+    await this.handleResponse(response)
+    response.thumbs.forEach(t =>
+      console.info('[pCloud] getthumbslinks entry:', { result: t.result, error: t.error }),
+    )
+    return response.thumbs.filter(t => t.result === 0 && t.hosts?.length && t.path)
+  }
+
   async getMetadata(path: string): Promise<PCloudListFolderResponse> {
-    const url = `${this.baseUrl}${PCLOUD_API_ENDPOINTS.FILES.GET}`
-
-    const response = await $fetch<PCloudListFolderResponse>(url, {
-      method: 'GET',
-      headers: this.headers,
-      params: { path },
-      timeout: this.timeout,
-    })
-
-    return this.handleResponse(response)
+    return this.handleResponse(
+      await this.call<PCloudListFolderResponse>(PCLOUD_API_ENDPOINTS.FILES.GET, { path }),
+    )
   }
 }

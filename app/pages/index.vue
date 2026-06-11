@@ -14,7 +14,7 @@ const vueFinderConfig = computed<ConfigDefaults>(() => ({
   persist: true,
   // Raise Uppy's client-side size guard. The real ceiling is the platform's
   // request body limit (no hard limit on Node; ~100 MB on Workers).
-  maxFileSize: '100mb',
+  maxFileSize: '1000mb',
 }))
 
 const features = {

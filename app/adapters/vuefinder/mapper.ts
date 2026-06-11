@@ -37,6 +37,7 @@ export function toDirEntry(storage: string, dto: FileSystemItemDto): VueFinderDi
       extension: dto.extension,
       file_size: dto.size,
       mime_type: dto.mimeType,
+      previewUrl: dto.thumbnailUrl,
     }
   }
 

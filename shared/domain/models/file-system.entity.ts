@@ -56,11 +56,14 @@ export interface FileEntity extends FileSystemItemBase {
   /** File extension without the dot (e.g., 'pdf', 'jpg') */
   extension: string
 
-  /**
-   * Optional thumb ready flag for preview capability
-   * This is cloud-provider specific metadata that we keep for convenience
-   */
+  /** Whether the provider has generated a thumbnail for this file. */
   hasThumbnail?: boolean
+
+  /**
+   * Pre-fetched thumbnail URL, populated by the provider when listing a folder
+   * (e.g. pCloud getthumbslinks). Expires; do not cache across requests.
+   */
+  thumbnailUrl?: string
 }
 
 /**

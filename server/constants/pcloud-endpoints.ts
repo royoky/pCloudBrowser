@@ -39,6 +39,8 @@ export const PCLOUD_API_ENDPOINTS = {
   },
   THUMBNAILS: {
     GET: '/getthumb',
+    GET_LINK: '/getthumblink',
+    GET_LINKS: '/getthumbslinks',
   },
 } as const
 

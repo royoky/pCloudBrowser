@@ -114,14 +114,16 @@ export class PCloudFileRepository implements FileRepository {
   private mapToFileEntity(
     pcloudItem: PCloudFileMetadata,
     parentPath: string,
+    thumbnailUrls: Map<string, string> = new Map(),
   ): FileEntity {
     const path = pcloudItem.path || FileSystemPath.join(parentPath, pcloudItem.name)
     const extension = pcloudItem.name.includes('.')
       ? pcloudItem.name.split('.').pop()!
       : ''
+    const id = pcloudItem.fileid.toString()
 
     return {
-      id: pcloudItem.fileid.toString(),
+      id,
       name: pcloudItem.name,
       path,
       type: 'file',
@@ -131,6 +133,7 @@ export class PCloudFileRepository implements FileRepository {
       mimeType: pcloudItem.contenttype,
       extension,
       hasThumbnail: pcloudItem.thumbready,
+      thumbnailUrl: thumbnailUrls.get(id),
     }
   }
 
@@ -163,11 +166,12 @@ export class PCloudFileRepository implements FileRepository {
   private mapToEntity(
     pcloudItem: PCloudItemMetadata,
     parentPath: string,
+    thumbnailUrls?: Map<string, string>,
   ): FileSystemItem {
     if (pcloudItem.isfolder) {
       return this.mapToFolderEntity(pcloudItem, parentPath, [])
     }
-    return this.mapToFileEntity(pcloudItem, parentPath)
+    return this.mapToFileEntity(pcloudItem, parentPath, thumbnailUrls)
   }
 
   /**
@@ -236,26 +240,53 @@ export class PCloudFileRepository implements FileRepository {
   // ========================================================================
 
   async list(path: string, _options?: ListOptions): Promise<FolderEntity> {
-    // Convert path to pCloud folder ID
     const folderId = await this.pathToId(path)
-
-    // List the folder from pCloud
     const response = await this.client.listFolder(folderId)
     const pcloudFolder = response.metadata
-
-    // Build the folder path
     const folderPath = pcloudFolder.path || path
 
-    // Cache the path-ID mapping
     this.pathIdCache.set(folderPath, pcloudFolder.folderid.toString())
 
-    // Map children to domain entities
+    // Batch-fetch thumbnail URLs for image files in one round-trip.
+    const thumbnailUrls = await this.fetchThumbnailUrls(pcloudFolder.contents ?? [])
+
     const children = (pcloudFolder.contents ?? []).map(item =>
-      this.mapToEntity(item, folderPath),
+      this.mapToEntity(item, folderPath, thumbnailUrls),
     )
 
-    // Create and return the folder entity
     return this.mapToFolderEntity(pcloudFolder, FileSystemPath.getParent(folderPath), children)
+  }
+
+  /**
+   * Calls getthumbslinks for all image files with a pCloud thumbnail,
+   * returning a fileid → CDN URL map. Non-fatal: returns empty map on error.
+   */
+  private async fetchThumbnailUrls(
+    items: PCloudItemMetadata[],
+  ): Promise<Map<string, string>> {
+    // Include images and videos regardless of thumbready: false just means the
+    // thumbnail hasn't been pre-cached, not that it can't be generated.
+    const imageFileIds = items
+      .filter((item) => {
+        if (item.isfolder)
+          return false
+        const mime = (item as PCloudFileMetadata).contenttype ?? ''
+        return mime.startsWith('image/') || mime.startsWith('video/')
+      })
+      .map(item => (item as PCloudFileMetadata).fileid.toString())
+
+    if (!imageFileIds.length)
+      return new Map()
+
+    try {
+      const thumbs = await this.client.getThumbsLinks(imageFileIds)
+      return new Map(
+        thumbs.map(t => [t.fileid.toString(), `https://${t.hosts![0]}${t.path}`]),
+      )
+    }
+    catch {
+      return new Map()
+    }
   }
 
   async getById(id: string): Promise<FileSystemItem | null> {
@@ -515,51 +546,40 @@ export class PCloudFileRepository implements FileRepository {
 
   async getDownloadUrl(path: string): Promise<string> {
     const item = await this.getByPath(path)
-
-    if (!item || !isFile(item)) {
+    if (!item || !isFile(item))
       throw new Error(`File not found: ${path}`)
-    }
 
-    const fileId = await this.pathToId(path)
-    const response = await this.client.getFileLink(fileId)
-
-    // Construct the full download URL
+    // item.id is the pCloud fileid — no second /stat call needed.
+    const response = await this.client.getFileLink(item.id)
     return `https://${response.hosts[0]}${response.path}`
   }
 
   async getPreviewUrl(path: string): Promise<string | null> {
     const item = await this.getByPath(path)
-
-    if (!item || !isFile(item)) {
+    if (!item || !isFile(item))
       return null
-    }
 
-    // Check if file is previewable
-    const previewableTypes = [
-      'image/',
-      'video/',
-      'audio/',
-      'text/',
-      'application/pdf',
-    ]
+    const isImage = item.mimeType.startsWith('image/')
+    const isPreviewable = isImage
+      || item.mimeType.startsWith('video/')
+      || item.mimeType.startsWith('audio/')
+      || item.mimeType.startsWith('text/')
+      || item.mimeType === 'application/pdf'
 
-    const isPreviewable = previewableTypes.some(type =>
-      item.mimeType.startsWith(type) || item.mimeType === type,
-    )
-
-    if (!isPreviewable) {
+    if (!isPreviewable)
       return null
-    }
 
-    // For pCloud, if thumbready is true, we can use the thumbnail
-    if (item.hasThumbnail) {
-      const fileId = await this.pathToId(path)
-      const response = await this.client.getFileLink(fileId)
+    // Images: use getthumblink so the preview modal shows a scaled thumbnail.
+    // Videos/others: use getfilelink — the video player needs the actual file,
+    // not a JPEG thumbnail. Grid thumbnails for video come from getthumbslinks
+    // in list() and land on DirEntry.previewUrl separately.
+    if (isImage) {
+      const response = await this.client.getThumbLink(item.id, '1024x768')
       return `https://${response.hosts[0]}${response.path}`
     }
 
-    // Otherwise, use the regular file URL
-    return this.getDownloadUrl(path)
+    const response = await this.client.getFileLink(item.id)
+    return `https://${response.hosts[0]}${response.path}`
   }
 
   async getContent(path: string): Promise<string> {
