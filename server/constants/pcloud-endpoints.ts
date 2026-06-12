@@ -42,6 +42,10 @@ export const PCLOUD_API_ENDPOINTS = {
     GET_LINK: '/getthumblink',
     GET_LINKS: '/getthumbslinks',
   },
+  STREAMING: {
+    // Undocumented but used by pCloud's own app — returns HLS + original variants
+    TRANSCODE_LINK: '/getmediatranscodelink',
+  },
 } as const
 
 export const PCLOUD_API_BASE_PATHS = {

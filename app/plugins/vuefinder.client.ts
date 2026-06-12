@@ -1,17 +1,14 @@
 /**
- * VueFinder Client Plugin
+ * VueFinder plugin — registers the component and provides the driver.
  *
- * Registers VueFinder component globally for client-side use only.
- * This is necessary because VueFinder depends on browser-only APIs (Uppy, File, Blob, etc.)
- * and cannot be used during SSR.
- *
- * Clean Code Principles Applied:
- * - Single Responsibility: Only registers the VueFinder plugin
- * - Separation of Concerns: Client-side only, no server contamination
+ * Centralising both here keeps index.vue free of wiring concerns: it only
+ * needs to bind the provided driver to the <VueFinder> prop.
  */
 
 import VueFinder from 'vuefinder'
+import { createVueFinderDriver } from '~/adapters/vuefinder'
 
 export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.use(VueFinder)
+  nuxtApp.provide('vueFinderDriver', createVueFinderDriver('pcloud'))
 })

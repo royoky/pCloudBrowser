@@ -20,6 +20,7 @@ import type {
   PCloudDeleteFolderRecursiveResponse,
   PCloudFileLinkResponse,
   PCloudListFolderResponse,
+  PCloudMediaTranscodeLinkResponse,
   PCloudRenameFileResponse,
   PCloudRenameFolderResponse,
   PCloudThumbLinkResponse,
@@ -110,22 +111,15 @@ export class PCloudClient {
    * Helper method to handle pCloud API responses
    * Throws PCloudApiError for unsuccessful responses
    */
-  private async handleResponse<T extends PCloudBaseResponse>(
-    response: T,
-  ): Promise<T> {
+  private async handleResponse<T extends PCloudBaseResponse>(response: T): Promise<T> {
     if (!isPCloudSuccess(response)) {
-      const message = getPCloudErrorMessage(response)
-        || `pCloud API returned error code: ${response.result}`
+      const message
+        = getPCloudErrorMessage(response) || `pCloud API returned error code: ${response.result}`
 
       // Map pCloud result codes to HTTP-like status codes
       const statusCode = this.mapResultToStatusCode(response.result)
 
-      throw new PCloudApiError(
-        message,
-        statusCode,
-        response.result,
-        response.error,
-      )
+      throw new PCloudApiError(message, statusCode, response.result, response.error)
     }
 
     return response
@@ -166,23 +160,38 @@ export class PCloudClient {
 
   async listFolder(folderId: string | number): Promise<PCloudListFolderResponse> {
     return this.handleResponse(
-      await this.call<PCloudListFolderResponse>(PCLOUD_API_ENDPOINTS.FILES.LIST, { folderid: folderId }),
+      await this.call<PCloudListFolderResponse>(PCLOUD_API_ENDPOINTS.FILES.LIST, {
+        folderid: folderId,
+      }),
     )
   }
 
   async createFolder(parentId: string | number, name: string): Promise<PCloudCreateFolderResponse> {
     return this.handleResponse(
-      await this.call<PCloudCreateFolderResponse>(PCLOUD_API_ENDPOINTS.FILES.CREATE_FOLDER, { folderid: parentId, name }),
+      await this.call<PCloudCreateFolderResponse>(PCLOUD_API_ENDPOINTS.FILES.CREATE_FOLDER, {
+        folderid: parentId,
+        name,
+      }),
     )
   }
 
-  async renameFolder(folderId: string | number, newName: string): Promise<PCloudRenameFolderResponse> {
+  async renameFolder(
+    folderId: string | number,
+    newName: string,
+  ): Promise<PCloudRenameFolderResponse> {
     return this.handleResponse(
-      await this.call<PCloudRenameFolderResponse>(PCLOUD_API_ENDPOINTS.FILES.MOVE_FOLDER, { folderid: folderId, toname: newName }),
+      await this.call<PCloudRenameFolderResponse>(PCLOUD_API_ENDPOINTS.FILES.MOVE_FOLDER, {
+        folderid: folderId,
+        toname: newName,
+      }),
     )
   }
 
-  async moveFolder(folderId: string | number, toFolderId: string | number, newName?: string): Promise<PCloudRenameFolderResponse> {
+  async moveFolder(
+    folderId: string | number,
+    toFolderId: string | number,
+    newName?: string,
+  ): Promise<PCloudRenameFolderResponse> {
     const params: Record<string, unknown> = { folderid: folderId, tofolderid: toFolderId }
     if (newName)
       params.toname = newName
@@ -193,11 +202,18 @@ export class PCloudClient {
 
   async deleteFolder(folderId: string | number): Promise<PCloudDeleteFolderRecursiveResponse> {
     return this.handleResponse(
-      await this.call<PCloudDeleteFolderRecursiveResponse>(PCLOUD_API_ENDPOINTS.FILES.DELETE_FOLDER, { folderid: folderId }),
+      await this.call<PCloudDeleteFolderRecursiveResponse>(
+        PCLOUD_API_ENDPOINTS.FILES.DELETE_FOLDER,
+        { folderid: folderId },
+      ),
     )
   }
 
-  async copyFile(fileId: string | number, toFolderId: string | number, newName?: string): Promise<PCloudCopyFileResponse> {
+  async copyFile(
+    fileId: string | number,
+    toFolderId: string | number,
+    newName?: string,
+  ): Promise<PCloudCopyFileResponse> {
     const params: Record<string, unknown> = { fileid: fileId, tofolderid: toFolderId }
     if (newName)
       params.toname = newName
@@ -206,7 +222,11 @@ export class PCloudClient {
     )
   }
 
-  async copyFolder(folderId: string | number, toFolderId: string | number, newName?: string): Promise<PCloudCopyFolderResponse> {
+  async copyFolder(
+    folderId: string | number,
+    toFolderId: string | number,
+    newName?: string,
+  ): Promise<PCloudCopyFolderResponse> {
     const params: Record<string, unknown> = { folderid: folderId, tofolderid: toFolderId }
     if (newName)
       params.toname = newName
@@ -217,11 +237,18 @@ export class PCloudClient {
 
   async renameFile(fileId: string | number, newName: string): Promise<PCloudRenameFileResponse> {
     return this.handleResponse(
-      await this.call<PCloudRenameFileResponse>(PCLOUD_API_ENDPOINTS.FILES.MOVE_FILE, { fileid: fileId, toname: newName }),
+      await this.call<PCloudRenameFileResponse>(PCLOUD_API_ENDPOINTS.FILES.MOVE_FILE, {
+        fileid: fileId,
+        toname: newName,
+      }),
     )
   }
 
-  async moveFile(fileId: string | number, toFolderId: string | number, newName?: string): Promise<PCloudRenameFileResponse> {
+  async moveFile(
+    fileId: string | number,
+    toFolderId: string | number,
+    newName?: string,
+  ): Promise<PCloudRenameFileResponse> {
     const params: Record<string, unknown> = { fileid: fileId, tofolderid: toFolderId }
     if (newName)
       params.toname = newName
@@ -232,13 +259,17 @@ export class PCloudClient {
 
   async deleteFile(fileId: string | number): Promise<PCloudDeleteFileResponse> {
     return this.handleResponse(
-      await this.call<PCloudDeleteFileResponse>(PCLOUD_API_ENDPOINTS.FILES.DELETE_FILE, { fileid: fileId }),
+      await this.call<PCloudDeleteFileResponse>(PCLOUD_API_ENDPOINTS.FILES.DELETE_FILE, {
+        fileid: fileId,
+      }),
     )
   }
 
   async getFileLink(fileId: string | number): Promise<PCloudFileLinkResponse> {
     return this.handleResponse(
-      await this.call<PCloudFileLinkResponse>(PCLOUD_API_ENDPOINTS.FILES.DOWNLOAD, { fileid: fileId }),
+      await this.call<PCloudFileLinkResponse>(PCLOUD_API_ENDPOINTS.FILES.DOWNLOAD, {
+        fileid: fileId,
+      }),
     )
   }
 
@@ -273,15 +304,21 @@ export class PCloudClient {
       throw new Error(`pCloud upload HTTP error: ${response.status} ${response.statusText}`)
     }
 
-    const json = await response.json() as PCloudUploadResponse
+    const json = (await response.json()) as PCloudUploadResponse
     console.info('[pCloud] ← POST', PCLOUD_API_ENDPOINTS.FILES.UPLOAD, { result: json.result })
     return this.handleResponse(json)
   }
 
   /** Returns a CDN link for a file thumbnail (same shape as getFileLink). */
-  async getThumbLink(fileId: string | number, size: string = '256x256'): Promise<PCloudThumbLinkResponse> {
+  async getThumbLink(
+    fileId: string | number,
+    size: string = '256x256',
+  ): Promise<PCloudThumbLinkResponse> {
     return this.handleResponse(
-      await this.call<PCloudThumbLinkResponse>(PCLOUD_API_ENDPOINTS.THUMBNAILS.GET_LINK, { fileid: fileId, size }),
+      await this.call<PCloudThumbLinkResponse>(PCLOUD_API_ENDPOINTS.THUMBNAILS.GET_LINK, {
+        fileid: fileId,
+        size,
+      }),
     )
   }
 
@@ -290,7 +327,10 @@ export class PCloudClient {
    * pCloud connects to multiple storage servers simultaneously, making this
    * more efficient than sequential getThumbLink calls.
    */
-  async getThumbsLinks(fileIds: string[], size: string = '256x256'): Promise<PCloudThumbsLinksResponse['thumbs']> {
+  async getThumbsLinks(
+    fileIds: string[],
+    size: string = '256x256',
+  ): Promise<PCloudThumbsLinksResponse['thumbs']> {
     const response = await this.call<PCloudThumbsLinksResponse>(
       PCLOUD_API_ENDPOINTS.THUMBNAILS.GET_LINKS,
       { fileids: fileIds.join(','), size },
@@ -305,6 +345,20 @@ export class PCloudClient {
   async getMetadata(path: string): Promise<PCloudListFolderResponse> {
     return this.handleResponse(
       await this.call<PCloudListFolderResponse>(PCLOUD_API_ENDPOINTS.FILES.GET, { path }),
+    )
+  }
+
+  /**
+   * Returns HLS and original variants for a video file.
+   * Uses pCloud's undocumented getmediatranscodelink endpoint,
+   * which is what pCloud's own web app uses for video playback.
+   */
+  async getMediaTranscodeLink(path: string): Promise<PCloudMediaTranscodeLinkResponse> {
+    return this.handleResponse(
+      await this.call<PCloudMediaTranscodeLinkResponse>(
+        PCLOUD_API_ENDPOINTS.STREAMING.TRANSCODE_LINK,
+        { path, transcodeahead: 1, mediatype: 'video' },
+      ),
     )
   }
 }

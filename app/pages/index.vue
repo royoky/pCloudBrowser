@@ -3,8 +3,8 @@ import type { ConfigDefaults } from 'vuefinder'
 
 const { loggedIn } = useUserSession()
 
-// VueFinder driver — the client adapter onto our neutral /api/pcloud/* API.
-const driver = useVueFinderDriver()
+// Driver and HLS setup are handled by plugins (vuefinder.client, vuefinder-hls.client).
+const { $vueFinderDriver: driver } = useNuxtApp()
 
 const colorMode = useColorMode()
 

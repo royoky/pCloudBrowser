@@ -582,6 +582,19 @@ export class PCloudFileRepository implements FileRepository {
     return `https://${response.hosts[0]}${response.path}`
   }
 
+  async getStreamUrl(path: string): Promise<string | null> {
+    try {
+      const response = await this.client.getMediaTranscodeLink(path)
+      const hls = response.variants.find(v => v.transcodetype === 'hls')
+      if (!hls)
+        return null
+      return `https://${hls.hosts[0]}${hls.path}`
+    }
+    catch {
+      return null
+    }
+  }
+
   async getContent(path: string): Promise<string> {
     const url = await this.getDownloadUrl(path)
 

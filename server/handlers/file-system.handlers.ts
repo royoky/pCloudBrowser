@@ -18,14 +18,15 @@ import type {
   ContentDto,
   SearchResultDto,
 } from '~~/shared/contracts/file-system.dto'
-
 import type { FileRepository } from '~~/shared/domain/ports/file.repository'
+
 import { z } from 'zod'
 import {
   toFolderListing,
   toItemDto,
   toOperationResult,
 } from '~~/server/presenters/file-system.presenter'
+import { rewriteM3u8 } from '~~/server/utils/hls'
 import { toHttpError } from '~~/server/utils/http-error'
 import { resolveRepository } from '~~/server/utils/repository.resolver'
 
@@ -203,12 +204,105 @@ export const downloadHandler = defineEventHandler(async (event) => {
   }
 })
 
-/** GET /api/{provider}/preview?path=… -> 302 redirect, or 415 if not previewable */
+// Short-lived cache for signed pCloud CDN URLs so seeking a video doesn't
+// trigger a fresh /stat + /getfilelink pair on every range request.
+const videoUrlCache = new Map<string, { url: string, expiresAt: number }>()
+
+const VIDEO_EXTENSIONS = new Set(['mp4', 'webm', 'ogg', 'ogv', 'mov', 'm4v'])
+
+function isVideoPath(path: string): boolean {
+  return VIDEO_EXTENSIONS.has(path.split('.').pop()?.toLowerCase() ?? '')
+}
+
+async function getCachedVideoUrl(event: H3Event, path: string): Promise<string> {
+  const cached = videoUrlCache.get(path)
+  if (cached && cached.expiresAt > Date.now())
+    return cached.url
+
+  const repository = resolveRepository(event)
+  const url = await repository.getDownloadUrl(path)
+  // Cache for 4 minutes (pCloud signed URLs typically expire after 5+)
+  videoUrlCache.set(path, { url, expiresAt: Date.now() + 4 * 60 * 1000 })
+  return url
+}
+
+/**
+ * Proxies a video range request to pCloud's CDN.
+ *
+ * A 302 redirect is not enough for video — pCloud CDN URLs have a referrer
+ * restriction that blocks browser-originated requests. Proxying server-side
+ * avoids that, and forwarding Range headers enables seeking.
+ *
+ * When Chrome requests bytes=0- (open-ended), it receives the entire file as
+ * one stream and gives up before finding the moov atom if the file is
+ * non-faststart (moov at end). Capping the initial range to 64KB forces
+ * Chrome's media engine to close that connection and issue a targeted second
+ * request for the end of the file where moov lives.
+ *
+ * Uses sendWebResponse which accepts a native Response and streams the body
+ * without buffering — memory cost is bounded by chunk size, not file size.
+ */
+async function proxyVideoStream(event: H3Event, cdnUrl: string): Promise<void> {
+  let range = getHeader(event, 'range')
+
+  // Cap open-ended initial probe to 64 KB so Chrome is forced to make
+  // targeted range requests rather than streaming the whole file.
+  if (range === 'bytes=0-')
+    range = 'bytes=0-65535'
+
+  const headers: Record<string, string> = {}
+  if (range)
+    headers.range = range
+
+  const upstream = await fetch(cdnUrl, { headers })
+
+  if (!upstream.headers.has('accept-ranges'))
+    upstream.headers.set('accept-ranges', 'bytes')
+
+  return sendWebResponse(event, upstream)
+}
+
+/**
+ * Fetches an m3u8 playlist from pCloud, rewrites all URLs to our proxy
+ * endpoint, and returns it with the correct content type.
+ */
+async function proxyM3u8(event: H3Event, m3u8Url: string): Promise<void> {
+  const upstream = await fetch(m3u8Url)
+  if (!upstream.ok) {
+    throw createError({
+      statusCode: 502,
+      statusMessage: 'BAD_GATEWAY',
+      message: 'Failed to fetch HLS playlist from upstream',
+    })
+  }
+  const content = await upstream.text()
+  // Derive the provider segment from the request path so the proxy URL
+  // stays consistent regardless of which provider is active.
+  const provider = event.path.split('/')[2] // /api/{provider}/preview
+  const proxyPath = `/api/${provider}/hls-proxy`
+  const rewritten = rewriteM3u8(content, m3u8Url, proxyPath)
+  setHeader(event, 'content-type', 'application/vnd.apple.mpegurl')
+  setHeader(event, 'cache-control', 'no-cache')
+  return send(event, rewritten)
+}
+
+/** GET /api/{provider}/preview?path=… */
 export const previewHandler = defineEventHandler(async (event) => {
   const repository = resolveRepository(event)
   const { path } = await getValidatedQuery(event, requiredPathSchema.parse)
 
   try {
+    if (isVideoPath(path)) {
+      // Try HLS first (proper adaptive streaming, no CORS or range issues).
+      // Falls back to range proxy if transcoding is unavailable.
+      const streamUrl = await repository.getStreamUrl(path)
+      if (streamUrl)
+        return proxyM3u8(event, streamUrl)
+
+      const cdnUrl = await getCachedVideoUrl(event, path)
+      return proxyVideoStream(event, cdnUrl)
+    }
+
     const url = await repository.getPreviewUrl(path)
     if (!url) {
       throw createError({
@@ -217,7 +311,7 @@ export const previewHandler = defineEventHandler(async (event) => {
         message: 'No preview available for this file',
       })
     }
-    return await sendRedirect(event, url, 302)
+    return sendRedirect(event, url, 302)
   }
   catch (error) {
     throw toHttpError(error)

@@ -21,6 +21,7 @@
     "@nuxthub/core": "^0.10.7",
     "@uppy/xhr-upload": "^5.2.0",
     "busboy": "^1.6.0",
+    "hls.js": "^1.6.16",
     "luxon": "^3.7.2",
     "nuxt": "^4.4.6",
     "nuxt-auth-utils": "0.5.29",

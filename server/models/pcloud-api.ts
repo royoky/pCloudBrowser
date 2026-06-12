@@ -193,6 +193,24 @@ export interface PCloudThumbsLinksResponse extends PCloudBaseResponse {
   thumbs: PCloudThumbEntry[]
 }
 
+/** One variant returned by getmediatranscodelink */
+export interface PCloudMediaTranscodeVariant {
+  dwltag?: string
+  transcodetype: 'hls' | 'original' | (string & {})
+  expires: string
+  isoriginal: boolean
+  path: string
+  hosts: string[]
+  ips?: string[]
+  hash?: number
+  size?: number
+}
+
+/** Response from getmediatranscodelink */
+export interface PCloudMediaTranscodeLinkResponse extends PCloudBaseResponse {
+  variants: PCloudMediaTranscodeVariant[]
+}
+
 // 4. Type Guards and Helpers
 export function isPCloudSuccess(response: PCloudBaseResponse): boolean {
   return response.result === PCloudResultCode.SUCCESS // Assuming SUCCESS is 0
