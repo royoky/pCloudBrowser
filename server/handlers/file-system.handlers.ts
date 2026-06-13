@@ -208,7 +208,15 @@ export const downloadHandler = defineEventHandler(async (event) => {
 // trigger a fresh /stat + /getfilelink pair on every range request.
 const videoUrlCache = new Map<string, { url: string, expiresAt: number }>()
 
-const VIDEO_EXTENSIONS = new Set(['mp4', 'webm', 'ogg', 'ogv', 'mov', 'm4v'])
+// .ts is MPEG-2 Transport Stream here, not TypeScript — pCloud stores media,
+// and the HLS/range proxy degrades gracefully if the file turns out to be text.
+const VIDEO_EXTENSIONS = new Set([
+  'mp4', 'webm', 'ogg', 'ogv', 'mov', 'm4v',
+  'mkv', 'avi', 'wmv', 'flv', 'asf',
+  'ts', 'mts', 'm2ts',
+  'mpg', 'mpeg', 'm2v',
+  '3gp', '3g2',
+])
 
 function isVideoPath(path: string): boolean {
   return VIDEO_EXTENSIONS.has(path.split('.').pop()?.toLowerCase() ?? '')
