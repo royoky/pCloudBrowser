@@ -39,9 +39,8 @@ export interface FileDto extends FileSystemItemBaseDto {
   mimeType: string
   /** Lowercase extension without the dot, "" when none. */
   extension: string
+  /** True when the provider can generate a thumbnail for this file. */
   hasThumbnail?: boolean
-  /** Pre-fetched thumbnail CDN URL (populated during folder listing). */
-  thumbnailUrl?: string
 }
 
 export interface FolderDto extends FileSystemItemBaseDto {

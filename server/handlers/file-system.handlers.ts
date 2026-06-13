@@ -311,7 +311,20 @@ export const previewHandler = defineEventHandler(async (event) => {
         message: 'No preview available for this file',
       })
     }
-    return sendRedirect(event, url, 302)
+    // Proxy the image server-side: a 302 redirect would send the browser
+    // directly to eth*.pcloud.com, where pCloud cookies are auto-sent and
+    // Chrome's ORB blocks the cross-origin opaque response.
+    const upstream = await fetch(url)
+    if (!upstream.ok) {
+      throw createError({
+        statusCode: 502,
+        statusMessage: 'BAD_GATEWAY',
+        message: 'Upstream preview unavailable',
+      })
+    }
+    setHeader(event, 'content-type', upstream.headers.get('content-type') ?? 'image/jpeg')
+    setHeader(event, 'cache-control', 'public, max-age=3600')
+    return sendWebResponse(event, upstream)
   }
   catch (error) {
     throw toHttpError(error)

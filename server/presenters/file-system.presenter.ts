@@ -36,7 +36,6 @@ function toFileDto(file: FileEntity): FileSystemItemDto {
     mimeType: file.mimeType,
     extension: file.extension,
     hasThumbnail: file.hasThumbnail,
-    thumbnailUrl: file.thumbnailUrl,
   }
 }
 

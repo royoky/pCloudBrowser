@@ -37,7 +37,11 @@ export function toDirEntry(storage: string, dto: FileSystemItemDto): VueFinderDi
       extension: dto.extension,
       file_size: dto.size,
       mime_type: dto.mimeType,
-      previewUrl: dto.thumbnailUrl,
+      // Route thumbnails through our proxy — direct CDN URLs (eth*.pcloud.com)
+      // get blocked by ORB when the browser auto-sends pCloud cookies cross-site.
+      previewUrl: dto.hasThumbnail
+        ? `/api/${storage}/preview?path=${encodeURIComponent(dto.path)}`
+        : undefined,
     }
   }
 

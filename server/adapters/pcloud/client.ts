@@ -96,14 +96,14 @@ export class PCloudClient {
     params: Record<string, unknown>,
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`
-    console.info('[pCloud] →', endpoint)
+    const start = Date.now()
     const response = await $fetch<T>(url, {
       method: 'GET',
       headers: this.headers,
       params,
       timeout: this.timeout,
     })
-    console.info('[pCloud] ←', endpoint, { result: response.result })
+    console.info(`[pCloud] ${endpoint} ${response.result} ${Date.now() - start}ms`)
     return response
   }
 
@@ -293,7 +293,7 @@ export class PCloudClient {
     formData.append('nopartial', '1')
     formData.append('file', new Blob([fileData.buffer as ArrayBuffer], { type: mimeType }), name)
 
-    console.info('[pCloud] → POST', PCLOUD_API_ENDPOINTS.FILES.UPLOAD, { size: fileData.length })
+    const start = Date.now()
     const response = await fetch(url, {
       method: 'POST',
       headers: { Authorization: `Bearer ${this.accessToken}` },
@@ -305,7 +305,9 @@ export class PCloudClient {
     }
 
     const json = (await response.json()) as PCloudUploadResponse
-    console.info('[pCloud] ← POST', PCLOUD_API_ENDPOINTS.FILES.UPLOAD, { result: json.result })
+    console.info(
+      `[pCloud] POST ${PCLOUD_API_ENDPOINTS.FILES.UPLOAD} ${json.result} ${Date.now() - start}ms`,
+    )
     return this.handleResponse(json)
   }
 
@@ -336,9 +338,6 @@ export class PCloudClient {
       { fileids: fileIds.join(','), size },
     )
     await this.handleResponse(response)
-    response.thumbs.forEach(t =>
-      console.info('[pCloud] getthumbslinks entry:', { result: t.result, error: t.error }),
-    )
     return response.thumbs.filter(t => t.result === 0 && t.hosts?.length && t.path)
   }
 

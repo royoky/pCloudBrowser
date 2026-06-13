@@ -88,6 +88,12 @@ class PathIdCache {
  * - Maps pCloud responses to domain entities
  * - Handles path-to-ID conversions
  */
+// Module-level cache for thumbnail CDN URLs so list() and subsequent preview
+// requests (separate HTTP requests, separate repository instances) share state.
+// Key: pCloud fileid string. TTL mirrors pCloud signed URL lifetime.
+const thumbnailCdnCache = new Map<string, { url: string, expiresAt: number }>()
+const THUMBNAIL_TTL_MS = 4 * 60 * 1000
+
 export class PCloudFileRepository implements FileRepository {
   private readonly client: PCloudClient
   private readonly rootFolderId: string
@@ -132,8 +138,7 @@ export class PCloudFileRepository implements FileRepository {
       size: pcloudItem.size,
       mimeType: pcloudItem.contenttype,
       extension,
-      hasThumbnail: pcloudItem.thumbready,
-      thumbnailUrl: thumbnailUrls.get(id),
+      hasThumbnail: thumbnailUrls.has(id),
     }
   }
 
@@ -280,9 +285,15 @@ export class PCloudFileRepository implements FileRepository {
 
     try {
       const thumbs = await this.client.getThumbsLinks(imageFileIds)
-      return new Map(
-        thumbs.map(t => [t.fileid.toString(), `https://${t.hosts![0]}${t.path}`]),
-      )
+      const result = new Map<string, string>()
+      const expiresAt = Date.now() + THUMBNAIL_TTL_MS
+      for (const t of thumbs) {
+        const url = `https://${t.hosts![0]}${t.path}`
+        const id = t.fileid.toString()
+        result.set(id, url)
+        thumbnailCdnCache.set(id, { url, expiresAt })
+      }
+      return result
     }
     catch {
       return new Map()
@@ -569,11 +580,14 @@ export class PCloudFileRepository implements FileRepository {
     if (!isPreviewable)
       return null
 
-    // Images: use getthumblink so the preview modal shows a scaled thumbnail.
-    // Videos/others: use getfilelink — the video player needs the actual file,
-    // not a JPEG thumbnail. Grid thumbnails for video come from getthumbslinks
-    // in list() and land on DirEntry.previewUrl separately.
+    // Images: serve a scaled thumbnail. Check the module-level cache first —
+    // list() pre-populates it via getthumbslinks so most preview requests are
+    // a cache hit and skip the extra getthumblink round-trip.
     if (isImage) {
+      const cached = thumbnailCdnCache.get(item.id)
+      if (cached && cached.expiresAt > Date.now())
+        return cached.url
+
       const response = await this.client.getThumbLink(item.id, '1024x768')
       return `https://${response.hosts[0]}${response.path}`
     }
