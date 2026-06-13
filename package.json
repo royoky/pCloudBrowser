@@ -18,7 +18,6 @@
   "dependencies": {
     "@iconify-json/lucide": "^1.2.111",
     "@nuxt/ui": "^4.8.1",
-    "@nuxthub/core": "^0.10.7",
     "@uppy/xhr-upload": "^5.2.0",
     "busboy": "^1.6.0",
     "hls.js": "^1.6.16",

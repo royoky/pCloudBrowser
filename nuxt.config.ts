@@ -28,6 +28,7 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    preset: 'cloudflare_pages',
     experimental: {
       openAPI: true,
     },
