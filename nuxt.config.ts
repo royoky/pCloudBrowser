@@ -16,9 +16,6 @@ export default defineNuxtConfig({
   runtimeConfig: {
     appClientSecret: '',
     appClientId: '',
-    public: {
-      baseUrl: '',
-    },
   },
 
   eslint: {
