@@ -63,7 +63,10 @@ const searchQuerySchema = z.object({
   query: z.string().min(1),
   path: z.string().optional().default('/'),
   // Query params arrive as strings; only "true" means recursive.
-  recursive: z.string().optional().transform(value => value === 'true'),
+  recursive: z
+    .string()
+    .optional()
+    .transform(value => value === 'true'),
   type: z.enum(['file', 'folder', 'both']).optional().default('both'),
 })
 
@@ -72,13 +75,12 @@ function errorMessage(error: unknown): string {
 }
 
 /** Runs a copy/move batch, reporting a per-source outcome. */
-async function runTransfer(
-  event: H3Event,
-  op: 'copy' | 'move',
-): Promise<BatchResultDto> {
+async function runTransfer(event: H3Event, op: 'copy' | 'move'): Promise<BatchResultDto> {
   const repository: FileRepository = resolveRepository(event)
-  const { sources, destinationPath, overwrite }
-    = await readValidatedBody(event, transferBodySchema.parse)
+  const { sources, destinationPath, overwrite } = await readValidatedBody(
+    event,
+    transferBodySchema.parse,
+  )
 
   const results = await Promise.all(
     sources.map(async (sourcePath) => {
@@ -211,11 +213,25 @@ const videoUrlCache = new Map<string, { url: string, expiresAt: number }>()
 // .ts is MPEG-2 Transport Stream here, not TypeScript — pCloud stores media,
 // and the HLS/range proxy degrades gracefully if the file turns out to be text.
 const VIDEO_EXTENSIONS = new Set([
-  'mp4', 'webm', 'ogg', 'ogv', 'mov', 'm4v',
-  'mkv', 'avi', 'wmv', 'flv', 'asf',
-  'ts', 'mts', 'm2ts',
-  'mpg', 'mpeg', 'm2v',
-  '3gp', '3g2',
+  '3g2',
+  '3gp',
+  'asf',
+  'avi',
+  'flv',
+  'm2ts',
+  'm2v',
+  'm4v',
+  'mkv',
+  'mov',
+  'mp4',
+  'mpeg',
+  'mpg',
+  'mts',
+  'ogg',
+  'ogv',
+  'ts',
+  'webm',
+  'wmv',
 ])
 
 function isVideoPath(path: string): boolean {

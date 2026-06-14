@@ -8,15 +8,18 @@
  * Uses busboy for multipart parsing: H3's readMultipartFormData has an
  * "Invalid array length" bug above ~10 MB, and readFormData caps at ~50 MB.
  *
- * Two feeding strategies depending on the runtime:
- *   - Cloudflare Workers: event.web.request.body (Web API ReadableStream)
- *   - Node.js dev server: req.pipe(bb) (Node.js streams)
+ * The raw body is read via H3's `readRawBody`, which works across runtimes:
+ *   - Cloudflare Pages: Nitro buffers the body and exposes it as
+ *     `event.node.req.body` (the request is a node-mock-http stub whose
+ *     `.pipe()` is a no-op — piping it would hang the worker forever).
+ *   - Node.js dev server: reads the real IncomingMessage stream.
+ * busboy is then fed the whole buffer in one shot via `bb.end(body)`.
  *
  * Upload size is bounded by the platform's request body limit
- * (~100 MB on Cloudflare Workers, no hard limit on Node.js).
+ * (~100 MB on Cloudflare; the cloudflare-pages preset fully buffers the
+ * body in memory before this handler runs, so streaming is not possible here).
  */
 
-import type { IncomingMessage } from 'node:http'
 import { Buffer } from 'node:buffer'
 import busboy from 'busboy'
 import { toItemDto } from '~~/server/presenters/file-system.presenter'
@@ -32,7 +35,7 @@ interface ParsedUpload {
 
 function parseMultipart(
   contentType: string,
-  source: ReadableStream<Uint8Array> | IncomingMessage,
+  body: Buffer,
 ): Promise<ParsedUpload> {
   return new Promise((resolve, reject) => {
     const bb = busboy({ headers: { 'content-type': contentType } })
@@ -84,28 +87,10 @@ function parseMultipart(
 
     bb.on('error', reject)
 
-    if (source instanceof ReadableStream) {
-      // Cloudflare Workers: feed Web API stream chunk by chunk
-      const reader = source.getReader()
-      const pump = (): void => {
-        reader
-          .read()
-          .then(({ done, value }) => {
-            if (done) {
-              bb.end()
-              return
-            }
-            bb.write(value)
-            pump()
-          })
-          .catch(reject)
-      }
-      pump()
-    }
-    else {
-      // Node.js dev server: pipe IncomingMessage directly
-      source.pipe(bb)
-    }
+    // The body is already fully buffered (see file header), so feed busboy
+    // the whole payload in one shot. Avoids relying on a pipeable request
+    // stream, which the cloudflare-pages mock request does not provide.
+    bb.end(body)
   })
 }
 
@@ -121,11 +106,18 @@ export const uploadHandler = defineEventHandler(async (event) => {
     })
   }
 
-  const source = event.web?.request?.body ?? event.node.req
+  const body = await readRawBody(event, false)
+  if (!body) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'BAD_REQUEST',
+      message: 'Empty request body',
+    })
+  }
 
   let parsed: Awaited<ReturnType<typeof parseMultipart>>
   try {
-    parsed = await parseMultipart(contentType, source)
+    parsed = await parseMultipart(contentType, body)
   }
   catch (error) {
     throw createError({
