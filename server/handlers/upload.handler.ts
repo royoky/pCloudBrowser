@@ -123,7 +123,19 @@ export const uploadHandler = defineEventHandler(async (event) => {
 
   const source = event.web?.request?.body ?? event.node.req
 
-  const { parentPath, name, mimeType, fileData } = await parseMultipart(contentType, source)
+  let parsed: Awaited<ReturnType<typeof parseMultipart>>
+  try {
+    parsed = await parseMultipart(contentType, source)
+  }
+  catch (error) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'PARSE_ERROR',
+      message: `Multipart parse failed: ${error instanceof Error ? error.message : String(error)}`,
+    })
+  }
+
+  const { parentPath, name, mimeType, fileData } = parsed
 
   try {
     const file = await repository.uploadFile(parentPath, fileData, name, mimeType)
