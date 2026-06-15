@@ -6,7 +6,8 @@ A cloud file browser built with Nuxt 4 and Nuxt UI, using the [VueFinder](https:
 
 - **Nuxt 4** (Vue 3, Nitro server engine)
 - **Nuxt UI 4** + **Tailwind CSS 4** (app shell, theming)
-- **VueFinder 4** (file-manager UI)
+- **VueFinder 4** (file-manager UI), **Uppy 5** (upload client)
+- **hls.js** (video streaming playback)
 - **nuxt-auth-utils** (session, pCloud OAuth2)
 - **@nuxthub/core** (deployment)
 - **Zod** (request validation), **Luxon** (dates)
@@ -61,7 +62,11 @@ All endpoints live under `/api/{provider}` (currently `pcloud`) and mirror the `
 | `GET /api/pcloud/search` | Search |
 | `GET /api/pcloud/content?path=` | Read text content |
 | `GET /api/pcloud/download?path=` | 302 redirect to a signed download URL |
-| `GET /api/pcloud/preview?path=` | 302 redirect to a preview URL |
+| `GET /api/pcloud/preview?path=` | Image: 302 to a thumbnail/preview URL. Video: proxied HLS playlist |
+| `GET /api/pcloud/hls-proxy` | Rewrites pCloud's HLS playlist so segments load same-origin (CDN CORS is locked to pCloud's own domains) |
+| `POST /api/pcloud/upload/create` | Open a resumable upload session → `{ uploadId }` |
+| `PUT /api/pcloud/upload/write?uploadId=&offset=` | Append a raw chunk at a byte offset |
+| `POST /api/pcloud/upload/save` | Finalize the session into a file (`{ uploadId, path, name }`) |
 
 The handlers are provider-agnostic (`server/handlers/file-system.handlers.ts`); each is mounted via a thin literal route that re-exports it. A note on routing: a dynamic `[provider]` directory is intentionally **not** used, because the OAuth callback at `/api/pcloud/auth/callback` makes `pcloud` a static route node and Nitro won't fall back from it to a `[provider]` sibling.
 
@@ -111,7 +116,7 @@ app/
 └── plugins/              # Registers the VueFinder component (client-only)
 
 server/
-├── api/pcloud/           # Neutral endpoints (+ auth/callback, files/upload*)
+├── api/pcloud/           # Neutral endpoints (+ auth/callback, upload/, hls-proxy)
 ├── adapters/pcloud/      # PCloudFileRepository (outbound) + low-level PCloudClient
 ├── handlers/             # Shared, provider-agnostic request handlers
 ├── presenters/           # Domain entity → DTO
@@ -138,10 +143,17 @@ The client and the neutral contract stay untouched.
 
 Replace `app/adapters/<library>/` with an adapter implementing the new library's driver interface in terms of the neutral API. The server stays untouched.
 
+### Upload & video streaming (undocumented pCloud endpoints)
+
+Two features rely on pCloud endpoints that are absent from the public docs but used by pCloud's own desktop client ([`pclsync`](https://github.com/pcloud/pclsync)):
+
+- **Resumable chunked upload.** pCloud's `fileops` API (`file_open`/`file_write`) returns `2003 access denied` under OAuth2, and the one-shot `uploadfile` is bounded by the deployment platform's request-body limit (~100 MB on Cloudflare). The **`upload_create` / `upload_write` / `upload_save`** session API *does* work under OAuth2: the `uploadId` is a persistent integer that survives stateless requests, so a custom Uppy uploader streams the file in 20 MB chunks (real per-chunk progress, no platform size ceiling).
+- **Video streaming** uses `getmediatranscodelink` (undocumented HLS), proxied through `/hls-proxy` because pCloud's CDN restricts CORS to its own domains.
+
 ## Status & limitations
 
-- File browsing, copy, move, delete, rename, create-folder, search, download and preview are implemented end-to-end.
-- **Upload is not yet wired.** pCloud's chunked/resumable and direct-upload-link APIs are unavailable under OAuth2, leaving only the single-shot `uploadfile` method, so upload size is bounded by the deployment platform's request limit. (Switching to pCloud's password/digest auth would unlock chunked upload but has no 2FA support, so OAuth2 is retained.)
+- File browsing, copy, move, delete, rename, create-folder, search, download, preview (image thumbnails + video), chunked upload and HLS video streaming are implemented end-to-end.
+- Upload is uniformly chunked — even small files take 3+ requests (`create`/`write`/`save`). A one-shot fast path for small files is a possible optimization, not yet done.
 - VueFinder ships a global, unlayered CSS bundle that can override Nuxt UI utilities; keep that in mind when styling outside the file browser.
 
 ## Resources
