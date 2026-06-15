@@ -1,46 +1,48 @@
 /**
  * Upload handler — POST /api/{provider}/upload
  *
- * Receives a multipart/form-data request from Uppy (VueFinder's uploader):
- *   - `file`  field: the file bytes
- *   - `path`  meta field: target directory path
+ * The client (Uppy, formData: false) sends the file as the raw request body,
+ * with the target directory and filename in headers:
+ *   - `x-upload-path` : URL-encoded target directory path
+ *   - `x-upload-name` : URL-encoded filename
+ *   - `content-type`  : the file's MIME type
  *
- * Parsing strategy — Web-native FormData over the buffered body:
- *   - busboy was tried but relies on `Buffer.prototype.latin1Slice`, a Node
- *     internal that Cloudflare's workerd Buffer polyfill does not implement.
- *   - H3's `readMultipartFormData` has an "Invalid array length" bug above
- *     ~10 MB, and `readFormData` caps at ~50 MB.
- *   - `new Response(body).formData()` uses the runtime's own multipart parser
- *     (workerd and Node 24 alike), with no artificial cap and no Node-internal
- *     Buffer methods.
+ * Reading the raw body and handing it straight to the repository avoids the
+ * multipart parse + Blob/arrayBuffer copy chain, which copied the file ~3-4×
+ * in memory and OOMed the Cloudflare Worker isolate (128 MB) around 80 MB.
  *
- * The raw body is read via H3's `readRawBody`, which works across runtimes
- * (the cloudflare-pages preset exposes the body as `event.node.req.body`; the
- * Node dev server streams the real IncomingMessage). That preset buffers the
- * whole body in memory before this handler runs, so parsing the buffered body
- * costs nothing extra — and true streaming is not possible here regardless.
- * Upload size is therefore bounded by the platform request body limit
- * (~100 MB on Cloudflare).
+ * Upload size is bounded by the platform request-body limit (~100 MB on
+ * Cloudflare). pCloud has no OAuth2-compatible chunked/resumable upload API
+ * (fileops returns 2003 Access denied), so a single request is the only option.
  */
 
+import type { H3Event } from 'h3'
 import { toItemDto } from '~~/server/presenters/file-system.presenter'
 import { toHttpError } from '~~/server/utils/http-error'
 import { resolveRepository } from '~~/server/utils/repository.resolver'
 
+function decodeHeader(event: H3Event, name: string): string | undefined {
+  const raw = getHeader(event, name)
+  return raw ? decodeURIComponent(raw) : undefined
+}
+
 export const uploadHandler = defineEventHandler(async (event) => {
   const repository = resolveRepository(event)
 
-  const contentType = getHeader(event, 'content-type') ?? ''
-  if (!contentType.includes('multipart/form-data')) {
+  const parentPath = decodeHeader(event, 'x-upload-path')
+  if (!parentPath) {
     throw createError({
       statusCode: 400,
       statusMessage: 'BAD_REQUEST',
-      message: 'Expected multipart/form-data',
+      message: 'Missing x-upload-path header',
     })
   }
 
+  const name = decodeHeader(event, 'x-upload-name') ?? 'upload'
+  const mimeType = getHeader(event, 'content-type') || 'application/octet-stream'
+
   const body = await readRawBody(event, false)
-  if (!body) {
+  if (!body?.length) {
     throw createError({
       statusCode: 400,
       statusMessage: 'BAD_REQUEST',
@@ -48,43 +50,7 @@ export const uploadHandler = defineEventHandler(async (event) => {
     })
   }
 
-  let formData: FormData
-  try {
-    // `body` is a Buffer (a Uint8Array) — a valid BodyInit at runtime; the cast
-    // only sidesteps the Buffer<ArrayBufferLike> vs BufferSource generic mismatch.
-    formData = await new Response(body as BodyInit, {
-      headers: { 'content-type': contentType },
-    }).formData()
-  }
-  catch (error) {
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'PARSE_ERROR',
-      message: `Multipart parse failed: ${error instanceof Error ? error.message : String(error)}`,
-    })
-  }
-
-  const parentPath = formData.get('path')
-  if (typeof parentPath !== 'string') {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'BAD_REQUEST',
-      message: 'Missing `path` field',
-    })
-  }
-
-  const file = formData.get('file')
-  if (!(file instanceof Blob)) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'BAD_REQUEST',
-      message: 'No file received',
-    })
-  }
-
-  const fileData = new Uint8Array(await file.arrayBuffer())
-  const name = file instanceof File && file.name ? file.name : 'upload'
-  const mimeType = file.type || 'application/octet-stream'
+  const fileData = body instanceof Uint8Array ? body : new Uint8Array(body)
 
   try {
     const uploaded = await repository.uploadFile(parentPath, fileData, name, mimeType)

@@ -276,9 +276,11 @@ export class PCloudClient {
   /**
    * Uploads a file to pCloud.
    *
-   * Uses FormData so the body is standard multipart/form-data that Node's
-   * native fetch handles reliably. pCloud requires folderid and nopartial
-   * to appear before the file part, which FormData guarantees by append order.
+   * Sends the file as the raw request body (PUT /uploadfile?folderid=&filename=),
+   * the same mechanism rclone uses. This avoids building a multipart FormData +
+   * Blob on the server (an extra full-size copy of the file), keeping memory
+   * pressure ~1x the file size instead of ~3-4x — which is what OOMed the
+   * Cloudflare Worker isolate (128 MB) around 80 MB.
    */
   async uploadFile(
     folderId: string | number,
@@ -286,18 +288,23 @@ export class PCloudClient {
     mimeType: string,
     fileData: Uint8Array,
   ): Promise<PCloudUploadResponse> {
-    const url = `${this.baseUrl}${PCLOUD_API_ENDPOINTS.FILES.UPLOAD}`
-
-    const formData = new FormData()
-    formData.append('folderid', folderId.toString())
-    formData.append('nopartial', '1')
-    formData.append('file', new Blob([fileData.buffer as ArrayBuffer], { type: mimeType }), name)
+    const params = new URLSearchParams({
+      folderid: folderId.toString(),
+      filename: name,
+      nopartial: '1',
+    })
+    const url = `${this.baseUrl}${PCLOUD_API_ENDPOINTS.FILES.UPLOAD}?${params}`
 
     const start = Date.now()
     const response = await fetch(url, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${this.accessToken}` },
-      body: formData,
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+        'Content-Type': mimeType || 'application/octet-stream',
+      },
+      // Uint8Array is a valid fetch body at runtime; the cast only sidesteps
+      // TS 5.7's Uint8Array<ArrayBufferLike> vs BufferSource generic mismatch.
+      body: fileData as BodyInit,
     })
 
     if (!response.ok) {
@@ -306,7 +313,7 @@ export class PCloudClient {
 
     const json = (await response.json()) as PCloudUploadResponse
     console.info(
-      `[pCloud] POST ${PCLOUD_API_ENDPOINTS.FILES.UPLOAD} ${json.result} ${Date.now() - start}ms`,
+      `[pCloud] PUT ${PCLOUD_API_ENDPOINTS.FILES.UPLOAD} ${json.result} ${Date.now() - start}ms`,
     )
     return this.handleResponse(json)
   }

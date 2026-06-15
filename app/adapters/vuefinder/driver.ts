@@ -10,6 +10,8 @@
  * `@error` handler so failures are visible instead of showing an empty view.
  */
 
+import type { Body, Meta, Uppy, UppyFile } from '@uppy/core'
+
 import type {
   BatchResultDto,
   ContentDto,
@@ -30,7 +32,6 @@ import type {
   VueFinderSearchParams,
   VueFinderTransferParams,
 } from '~~/shared/types/vuefinder'
-
 import XHRUpload from '@uppy/xhr-upload'
 
 import { toDirEntry, toFsData } from './mapper'
@@ -132,29 +133,25 @@ export function createVueFinderDriver(storage: string): VueFinderDriver {
     },
 
     // Wire Uppy's XHR-upload plugin to our neutral upload endpoint.
-    // VueFinder sets the target path as per-file meta before each upload.
-    // uppy is typed as `unknown` in our local VueFinderDriver definition
-    // (we don't take a dep on @uppy/core). Cast to any — it's a VueFinder
-    // internal and we access only well-known Uppy methods.
+    // VueFinder's local Driver type erases the Uppy instance to `unknown`;
+    // cast it back to the real type at this boundary (the driver is the one
+    // place that legitimately depends on Uppy).
     configureUploader(uppyInstance, context) {
-      const uppy = uppyInstance as any
+      const uppy = uppyInstance as Uppy
 
-      // Register XHR upload pointed at our neutral upload endpoint.
-      // VueFinder passes a fresh Uppy instance with no plugins; we own setup.
+      // Send the raw file as the request body (formData: false) instead of
+      // multipart. The server streams it straight to pCloud's uploadfile,
+      // avoiding the multipart parse + copy chain that OOMed the Worker
+      // isolate around 80 MB. Target path and filename travel in headers
+      // (URL-encoded — header values must be ASCII).
       uppy.use(XHRUpload, {
         endpoint: `${base}/upload`,
-        fieldName: 'file',
+        formData: false,
         bundle: false,
-        formData: true,
-      })
-
-      // Stamp the current target path onto every file just before upload
-      // so the server knows which folder to upload into.
-      uppy.on('upload', () => {
-        const targetPath = toNeutral(context.getTargetPath())
-        uppy.getFiles().forEach((file: any) =>
-          uppy.setFileMeta(file.id, { path: targetPath }),
-        )
+        headers: (file: UppyFile<Meta, Body>) => ({
+          'x-upload-path': encodeURIComponent(toNeutral(context.getTargetPath())),
+          'x-upload-name': encodeURIComponent(file.name ?? 'upload'),
+        }),
       })
     },
 
