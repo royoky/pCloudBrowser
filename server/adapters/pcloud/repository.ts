@@ -355,15 +355,19 @@ export class PCloudFileRepository implements FileRepository {
     )
   }
 
-  async uploadFile(
-    parentPath: string,
-    fileData: Uint8Array,
-    name: string,
-    mimeType: string,
-  ): Promise<FileEntity> {
+  async createUpload(): Promise<string> {
+    const uploadId = await this.client.uploadCreate()
+    return uploadId.toString()
+  }
+
+  async writeUploadChunk(uploadId: string, offset: number, data: Uint8Array): Promise<void> {
+    await this.client.uploadWrite(uploadId, offset, data)
+  }
+
+  async saveUpload(uploadId: string, parentPath: string, name: string): Promise<FileEntity> {
     const folderId = await this.pathToId(parentPath)
-    const response = await this.client.uploadFile(folderId, name, mimeType, fileData)
-    return this.mapToFileEntity(response.metadata[0]!, parentPath)
+    const response = await this.client.uploadSave(uploadId, folderId, name)
+    return this.mapToFileEntity(response.metadata, parentPath)
   }
 
   async delete(path: string, _permanent: boolean = false): Promise<FileOperationResult> {

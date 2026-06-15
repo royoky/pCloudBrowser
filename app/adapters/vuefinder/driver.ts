@@ -10,7 +10,7 @@
  * `@error` handler so failures are visible instead of showing an empty view.
  */
 
-import type { Body, Meta, Uppy, UppyFile } from '@uppy/core'
+import type { Uppy } from '@uppy/core'
 
 import type {
   BatchResultDto,
@@ -32,8 +32,8 @@ import type {
   VueFinderSearchParams,
   VueFinderTransferParams,
 } from '~~/shared/types/vuefinder'
-import XHRUpload from '@uppy/xhr-upload'
 
+import { ChunkedUploader } from './chunked-uploader'
 import { toDirEntry, toFsData } from './mapper'
 import { toNeutralPath } from './path'
 
@@ -139,19 +139,11 @@ export function createVueFinderDriver(storage: string): VueFinderDriver {
     configureUploader(uppyInstance, context) {
       const uppy = uppyInstance as Uppy
 
-      // Send the raw file as the request body (formData: false) instead of
-      // multipart. The server streams it straight to pCloud's uploadfile,
-      // avoiding the multipart parse + copy chain that OOMed the Worker
-      // isolate around 80 MB. Target path and filename travel in headers
-      // (URL-encoded — header values must be ASCII).
-      uppy.use(XHRUpload, {
-        endpoint: `${base}/upload`,
-        formData: false,
-        bundle: false,
-        headers: (file: UppyFile<Meta, Body>) => ({
-          'x-upload-path': encodeURIComponent(toNeutral(context.getTargetPath())),
-          'x-upload-name': encodeURIComponent(file.name ?? 'upload'),
-        }),
+      // Chunked upload via pCloud's upload-session API — not bounded by the
+      // platform request-body limit, and reports real per-chunk progress.
+      uppy.use(ChunkedUploader, {
+        base,
+        getTargetPath: () => toNeutral(context.getTargetPath()),
       })
     },
 

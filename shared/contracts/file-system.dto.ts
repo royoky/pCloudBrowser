@@ -74,6 +74,11 @@ export interface ContentDto {
   mimeType: string
 }
 
+/** Result of opening a resumable upload session. */
+export interface CreateUploadResultDto {
+  uploadId: string
+}
+
 export interface UrlDto {
   url: string
 }

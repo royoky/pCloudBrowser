@@ -25,7 +25,8 @@ import type {
   PCloudRenameFolderResponse,
   PCloudThumbLinkResponse,
   PCloudThumbsLinksResponse,
-  PCloudUploadResponse,
+  PCloudUploadCreateResponse,
+  PCloudUploadSaveResponse,
 } from '~~/server/models/pcloud-api'
 
 import { $fetch } from 'ofetch'
@@ -274,48 +275,60 @@ export class PCloudClient {
   }
 
   /**
-   * Uploads a file to pCloud.
-   *
-   * Sends the file as the raw request body (PUT /uploadfile?folderid=&filename=),
-   * the same mechanism rclone uses. This avoids building a multipart FormData +
-   * Blob on the server (an extra full-size copy of the file), keeping memory
-   * pressure ~1x the file size instead of ~3-4x — which is what OOMed the
-   * Cloudflare Worker isolate (128 MB) around 80 MB.
+   * Opens a resumable upload session. Returns a numeric uploadid that is
+   * persistent — it can be referenced across separate, independent HTTP
+   * requests (unlike fileops file descriptors), which is what makes chunked
+   * upload work on stateless serverless runtimes.
    */
-  async uploadFile(
-    folderId: string | number,
-    name: string,
-    mimeType: string,
-    fileData: Uint8Array,
-  ): Promise<PCloudUploadResponse> {
-    const params = new URLSearchParams({
-      folderid: folderId.toString(),
-      filename: name,
-      nopartial: '1',
-    })
-    const url = `${this.baseUrl}${PCLOUD_API_ENDPOINTS.FILES.UPLOAD}?${params}`
+  async uploadCreate(): Promise<number> {
+    const res = await this.handleResponse(
+      await this.call<PCloudUploadCreateResponse>(PCLOUD_API_ENDPOINTS.FILES.UPLOAD_CREATE, {}),
+    )
+    return res.uploadid
+  }
 
-    const start = Date.now()
+  /**
+   * Writes a chunk to an upload session at a byte offset. The chunk is the raw
+   * request body (PUT), so no multipart framing and no extra in-memory copy.
+   */
+  async uploadWrite(
+    uploadId: number | string,
+    offset: number,
+    data: Uint8Array,
+  ): Promise<void> {
+    const params = new URLSearchParams({
+      uploadid: uploadId.toString(),
+      uploadoffset: offset.toString(),
+    })
+    const url = `${this.baseUrl}${PCLOUD_API_ENDPOINTS.FILES.UPLOAD_WRITE}?${params}`
+
     const response = await fetch(url, {
       method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${this.accessToken}`,
-        'Content-Type': mimeType || 'application/octet-stream',
-      },
+      headers: { Authorization: `Bearer ${this.accessToken}` },
       // Uint8Array is a valid fetch body at runtime; the cast only sidesteps
       // TS 5.7's Uint8Array<ArrayBufferLike> vs BufferSource generic mismatch.
-      body: fileData as BodyInit,
+      body: data as BodyInit,
     })
 
     if (!response.ok) {
-      throw new Error(`pCloud upload HTTP error: ${response.status} ${response.statusText}`)
+      throw new Error(`pCloud upload_write HTTP error: ${response.status} ${response.statusText}`)
     }
+    await this.handleResponse((await response.json()) as PCloudBaseResponse)
+  }
 
-    const json = (await response.json()) as PCloudUploadResponse
-    console.info(
-      `[pCloud] PUT ${PCLOUD_API_ENDPOINTS.FILES.UPLOAD} ${json.result} ${Date.now() - start}ms`,
+  /** Finalizes an upload session into a real file in the target folder. */
+  async uploadSave(
+    uploadId: number | string,
+    folderId: number | string,
+    name: string,
+  ): Promise<PCloudUploadSaveResponse> {
+    return this.handleResponse(
+      await this.call<PCloudUploadSaveResponse>(PCLOUD_API_ENDPOINTS.FILES.UPLOAD_SAVE, {
+        uploadid: uploadId,
+        folderid: folderId,
+        name,
+      }),
     )
-    return this.handleResponse(json)
   }
 
   /** Returns a CDN link for a file thumbnail (same shape as getFileLink). */

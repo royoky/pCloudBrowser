@@ -148,6 +148,16 @@ export interface PCloudUploadResponse extends PCloudBaseResponse {
   checksums: string[] // Array of checksums for uploaded files
 }
 
+/** Response from upload_create (resumable upload session). */
+export interface PCloudUploadCreateResponse extends PCloudBaseResponse {
+  uploadid: number
+}
+
+/** Response from upload_save — finalizes a session into a single file. */
+export interface PCloudUploadSaveResponse extends PCloudBaseResponse {
+  metadata: PCloudFileMetadata
+}
+
 export interface PCloudUploadUrlResponse extends PCloudBaseResponse {
   uploadlinkid: number
   link: string

@@ -1,60 +1,75 @@
 /**
- * Upload handler — POST /api/{provider}/upload
+ * Resumable upload handlers — chunked upload via pCloud's upload-session API.
  *
- * The client (Uppy, formData: false) sends the file as the raw request body,
- * with the target directory and filename in headers:
- *   - `x-upload-path` : URL-encoded target directory path
- *   - `x-upload-name` : URL-encoded filename
- *   - `content-type`  : the file's MIME type
+ * The client (a custom Uppy uploader) drives three steps, each an independent
+ * small request so nothing is bounded by the platform's request-body / memory
+ * limit, and the session id survives across the stateless requests:
  *
- * Reading the raw body and handing it straight to the repository avoids the
- * multipart parse + Blob/arrayBuffer copy chain, which copied the file ~3-4×
- * in memory and OOMed the Cloudflare Worker isolate (128 MB) around 80 MB.
+ *   1. POST /api/{provider}/upload/create        -> { uploadId }
+ *   2. PUT  /api/{provider}/upload/write?uploadId=&offset=   (raw chunk body)
+ *   3. POST /api/{provider}/upload/save  { uploadId, path, name }  -> FileDto
  *
- * Upload size is bounded by the platform request-body limit (~100 MB on
- * Cloudflare). pCloud has no OAuth2-compatible chunked/resumable upload API
- * (fileops returns 2003 Access denied), so a single request is the only option.
+ * pCloud's documented one-shot `uploadfile` is capped by the request body
+ * limit (~100 MB on Cloudflare); the upload-session API has no such cap.
  */
 
-import type { H3Event } from 'h3'
+import type { CreateUploadResultDto } from '~~/shared/contracts/file-system.dto'
+import { z } from 'zod'
 import { toItemDto } from '~~/server/presenters/file-system.presenter'
 import { toHttpError } from '~~/server/utils/http-error'
 import { resolveRepository } from '~~/server/utils/repository.resolver'
 
-function decodeHeader(event: H3Event, name: string): string | undefined {
-  const raw = getHeader(event, name)
-  return raw ? decodeURIComponent(raw) : undefined
-}
+const writeQuerySchema = z.object({
+  uploadId: z.string().min(1),
+  offset: z.coerce.number().int().min(0),
+})
 
-export const uploadHandler = defineEventHandler(async (event) => {
+const saveBodySchema = z.object({
+  uploadId: z.string().min(1),
+  path: z.string().min(1),
+  name: z.string().min(1),
+})
+
+/** POST /api/{provider}/upload/create */
+export const createUploadHandler = defineEventHandler(
+  async (event): Promise<CreateUploadResultDto> => {
+    const repository = resolveRepository(event)
+    try {
+      return { uploadId: await repository.createUpload() }
+    }
+    catch (error) {
+      throw toHttpError(error)
+    }
+  },
+)
+
+/** PUT /api/{provider}/upload/write?uploadId=&offset= — raw chunk body */
+export const writeChunkHandler = defineEventHandler(async (event) => {
   const repository = resolveRepository(event)
-
-  const parentPath = decodeHeader(event, 'x-upload-path')
-  if (!parentPath) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'BAD_REQUEST',
-      message: 'Missing x-upload-path header',
-    })
-  }
-
-  const name = decodeHeader(event, 'x-upload-name') ?? 'upload'
-  const mimeType = getHeader(event, 'content-type') || 'application/octet-stream'
+  const { uploadId, offset } = await getValidatedQuery(event, writeQuerySchema.parse)
 
   const body = await readRawBody(event, false)
   if (!body?.length) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'BAD_REQUEST',
-      message: 'Empty request body',
-    })
+    throw createError({ statusCode: 400, statusMessage: 'BAD_REQUEST', message: 'Empty chunk' })
   }
-
-  const fileData = body instanceof Uint8Array ? body : new Uint8Array(body)
+  const data = body instanceof Uint8Array ? body : new Uint8Array(body)
 
   try {
-    const uploaded = await repository.uploadFile(parentPath, fileData, name, mimeType)
-    return toItemDto(uploaded)
+    await repository.writeUploadChunk(uploadId, offset, data)
+    return { ok: true }
+  }
+  catch (error) {
+    throw toHttpError(error)
+  }
+})
+
+/** POST /api/{provider}/upload/save  { uploadId, path, name } */
+export const saveUploadHandler = defineEventHandler(async (event) => {
+  const repository = resolveRepository(event)
+  const { uploadId, path, name } = await readValidatedBody(event, saveBodySchema.parse)
+
+  try {
+    return toItemDto(await repository.saveUpload(uploadId, path, name))
   }
   catch (error) {
     throw toHttpError(error)

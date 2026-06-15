@@ -129,23 +129,28 @@ export interface FileRepository {
   createFolder: (parentPath: string, name: string) => Promise<FolderEntity>
 
   /**
-   * Uploads a file.
-   *
-   * Note: Nitro's multipart parser buffers the entire request body before
-   * individual parts are accessible, so upload is inherently in-memory on
-   * the server. Size is bounded by the platform's request body limit.
-   *
-   * @param parentPath - Path to the parent directory
-   * @param fileData - File bytes
-   * @param name - File name
-   * @param mimeType - MIME type of the file
+   * Opens a resumable upload session.
+   * @returns An opaque upload session id, referenceable across requests.
    */
-  uploadFile: (
-    parentPath: string,
-    fileData: Uint8Array,
-    name: string,
-    mimeType: string,
-  ) => Promise<FileEntity>
+  createUpload: () => Promise<string>
+
+  /**
+   * Writes a chunk of data to an open upload session at a byte offset.
+   *
+   * @param uploadId - Session id from `createUpload`
+   * @param offset - Byte offset within the final file
+   * @param data - Chunk bytes
+   */
+  writeUploadChunk: (uploadId: string, offset: number, data: Uint8Array) => Promise<void>
+
+  /**
+   * Finalizes an upload session into a file in the target directory.
+   *
+   * @param uploadId - Session id from `createUpload`
+   * @param parentPath - Path to the parent directory
+   * @param name - Name of the new file
+   */
+  saveUpload: (uploadId: string, parentPath: string, name: string) => Promise<FileEntity>
 
   /**
    * Deletes a file or folder
