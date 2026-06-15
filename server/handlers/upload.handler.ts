@@ -5,94 +5,27 @@
  *   - `file`  field: the file bytes
  *   - `path`  meta field: target directory path
  *
- * Uses busboy for multipart parsing: H3's readMultipartFormData has an
- * "Invalid array length" bug above ~10 MB, and readFormData caps at ~50 MB.
+ * Parsing strategy — Web-native FormData over the buffered body:
+ *   - busboy was tried but relies on `Buffer.prototype.latin1Slice`, a Node
+ *     internal that Cloudflare's workerd Buffer polyfill does not implement.
+ *   - H3's `readMultipartFormData` has an "Invalid array length" bug above
+ *     ~10 MB, and `readFormData` caps at ~50 MB.
+ *   - `new Response(body).formData()` uses the runtime's own multipart parser
+ *     (workerd and Node 24 alike), with no artificial cap and no Node-internal
+ *     Buffer methods.
  *
- * The raw body is read via H3's `readRawBody`, which works across runtimes:
- *   - Cloudflare Pages: Nitro buffers the body and exposes it as
- *     `event.node.req.body` (the request is a node-mock-http stub whose
- *     `.pipe()` is a no-op — piping it would hang the worker forever).
- *   - Node.js dev server: reads the real IncomingMessage stream.
- * busboy is then fed the whole buffer in one shot via `bb.end(body)`.
- *
- * Upload size is bounded by the platform's request body limit
- * (~100 MB on Cloudflare; the cloudflare-pages preset fully buffers the
- * body in memory before this handler runs, so streaming is not possible here).
+ * The raw body is read via H3's `readRawBody`, which works across runtimes
+ * (the cloudflare-pages preset exposes the body as `event.node.req.body`; the
+ * Node dev server streams the real IncomingMessage). That preset buffers the
+ * whole body in memory before this handler runs, so parsing the buffered body
+ * costs nothing extra — and true streaming is not possible here regardless.
+ * Upload size is therefore bounded by the platform request body limit
+ * (~100 MB on Cloudflare).
  */
 
-import { Buffer } from 'node:buffer'
-import busboy from 'busboy'
 import { toItemDto } from '~~/server/presenters/file-system.presenter'
 import { toHttpError } from '~~/server/utils/http-error'
 import { resolveRepository } from '~~/server/utils/repository.resolver'
-
-interface ParsedUpload {
-  parentPath: string
-  name: string
-  mimeType: string
-  fileData: Uint8Array
-}
-
-function parseMultipart(
-  contentType: string,
-  body: Buffer,
-): Promise<ParsedUpload> {
-  return new Promise((resolve, reject) => {
-    const bb = busboy({ headers: { 'content-type': contentType } })
-
-    let parentPath: string | undefined
-    let name: string
-    let mimeType: string
-    const chunks: Buffer[] = []
-
-    bb.on('field', (fieldname, value) => {
-      if (fieldname === 'path')
-        parentPath = value
-    })
-
-    bb.on('file', (_field, stream, info) => {
-      name = info.filename || 'upload'
-      mimeType = info.mimeType || 'application/octet-stream'
-      stream.on('data', (chunk: Buffer) => chunks.push(chunk))
-      stream.on('error', reject)
-    })
-
-    bb.on('finish', () => {
-      if (!parentPath) {
-        return reject(
-          createError({
-            statusCode: 400,
-            statusMessage: 'BAD_REQUEST',
-            message: 'Missing `path` field',
-          }),
-        )
-      }
-      if (!chunks.length) {
-        return reject(
-          createError({
-            statusCode: 400,
-            statusMessage: 'BAD_REQUEST',
-            message: 'No file received',
-          }),
-        )
-      }
-
-      resolve({
-        parentPath,
-        name,
-        mimeType,
-        fileData: new Uint8Array(Buffer.concat(chunks)),
-      })
-    })
-
-    bb.on('error', reject)
-
-    // The body is already fully buffered (see file header), so feed busboy
-    // the whole payload in one shot. Avoids relying on a pipeable request
-    // stream, which the cloudflare-pages mock request does not provide.
-    bb.end(body)
-  })
-}
 
 export const uploadHandler = defineEventHandler(async (event) => {
   const repository = resolveRepository(event)
@@ -115,9 +48,13 @@ export const uploadHandler = defineEventHandler(async (event) => {
     })
   }
 
-  let parsed: Awaited<ReturnType<typeof parseMultipart>>
+  let formData: FormData
   try {
-    parsed = await parseMultipart(contentType, body)
+    // `body` is a Buffer (a Uint8Array) — a valid BodyInit at runtime; the cast
+    // only sidesteps the Buffer<ArrayBufferLike> vs BufferSource generic mismatch.
+    formData = await new Response(body as BodyInit, {
+      headers: { 'content-type': contentType },
+    }).formData()
   }
   catch (error) {
     throw createError({
@@ -127,11 +64,31 @@ export const uploadHandler = defineEventHandler(async (event) => {
     })
   }
 
-  const { parentPath, name, mimeType, fileData } = parsed
+  const parentPath = formData.get('path')
+  if (typeof parentPath !== 'string') {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'BAD_REQUEST',
+      message: 'Missing `path` field',
+    })
+  }
+
+  const file = formData.get('file')
+  if (!(file instanceof Blob)) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'BAD_REQUEST',
+      message: 'No file received',
+    })
+  }
+
+  const fileData = new Uint8Array(await file.arrayBuffer())
+  const name = file instanceof File && file.name ? file.name : 'upload'
+  const mimeType = file.type || 'application/octet-stream'
 
   try {
-    const file = await repository.uploadFile(parentPath, fileData, name, mimeType)
-    return toItemDto(file)
+    const uploaded = await repository.uploadFile(parentPath, fileData, name, mimeType)
+    return toItemDto(uploaded)
   }
   catch (error) {
     throw toHttpError(error)
