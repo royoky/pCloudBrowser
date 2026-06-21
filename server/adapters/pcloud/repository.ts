@@ -14,6 +14,7 @@
 
 import type {
   PCloudFileMetadata,
+  PCloudFolderContents,
   PCloudFolderMetadata,
   PCloudItemMetadata,
 } from '~~/server/models/pcloud-api'
@@ -527,36 +528,76 @@ export class PCloudFileRepository implements FileRepository {
   }
 
   async search(options: SearchOptions): Promise<FileSystemItem[]> {
-    // pCloud doesn't have a direct search API
-    // We would need to:
-    // 1. List the directory
-    // 2. Filter locally
-    // Or use pCloud's search if available
+    // Require 3+ characters before listing the whole tree (avoids huge result
+    // sets, and matches the prior UX) — return nothing for shorter queries.
+    if (options.query.trim().length < 3)
+      return []
 
-    // For now, implement a simple recursive search
+    // pCloud's `/search` is account-wide and ignores the OAuth app-folder scope,
+    // leaking out-of-scope file names and capping results before we can filter.
+    // Instead, list the app folder recursively (inherently in-scope) and filter
+    // by name ourselves. Recursive listfolder returns no `path` on nested items,
+    // so paths are built from `name`s during the flatten (and deleted items are
+    // excluded by pCloud unless we ask for them).
+    const response = await this.client.listFolder(this.rootFolderId, true)
+    const all = this.flattenTree(response.metadata)
+
+    const query = options.query.trim().toLowerCase()
+    const scope = options.path ?? '/'
+    const matches = all.filter(
+      item =>
+        item.name.toLowerCase().includes(query)
+        && this.isWithinScope(item.path, scope, options.recursive ?? false),
+    )
+
+    if (options.type === 'file')
+      return matches.filter(isFile)
+    if (options.type === 'folder')
+      return matches.filter(isFolder)
+    return matches
+  }
+
+  /**
+   * Flattens a recursive `/listfolder` tree into a flat list of entities with
+   * absolute paths. Paths are accumulated during the descent (recursive
+   * listfolder omits `path` on nested items), so no per-item lookup is needed.
+   * Iterative (explicit stack) so a deep tree can't overflow the call stack.
+   */
+  private flattenTree(root: PCloudFolderContents): FileSystemItem[] {
     const items: FileSystemItem[] = []
-    const startPath = options.path ?? '/'
+    // Explicit stack (not recursion) so a deep tree can't overflow the call
+    // stack. `pop()!` is sound here — the loop only runs while the stack is
+    // non-empty (tsconfig has noUncheckedIndexedAccess, so pop() is T | undefined).
+    const stack: Array<{ node: PCloudItemMetadata, parentPath: string }> = (
+      root.contents ?? []
+    ).map(node => ({ node, parentPath: '/' }))
 
-    // Use a bound function to maintain 'this' context
-    const searchRecursive = async (currentPath: string): Promise<void> => {
-      const folder = await this.list(currentPath)
+    while (stack.length > 0) {
+      const { node, parentPath } = stack.pop()!
+      const entity = this.mapToEntity(node, parentPath)
+      items.push(entity)
 
-      for (const child of folder.children ?? []) {
-        // Check if name matches (simple contains check)
-        if (child.name.toLowerCase().includes(options.query.toLowerCase())) {
-          items.push(child)
-        }
-
-        // If it's a folder and we're searching recursively, search it
-        if (isFolder(child) && options.recursive) {
-          await searchRecursive(child.path)
-        }
+      if (node.isfolder) {
+        for (const child of node.contents ?? [])
+          stack.push({ node: child, parentPath: entity.path })
       }
     }
 
-    await searchRecursive(startPath)
-
     return items
+  }
+
+  /**
+   * True if `itemPath` belongs to a search rooted at `scope`. With `recursive`,
+   * any descendant matches; otherwise only direct children of `scope`.
+   */
+  private isWithinScope(itemPath: string, scope: string, recursive: boolean): boolean {
+    if (scope === '/')
+      return recursive ? true : FileSystemPath.getParent(itemPath) === '/'
+
+    if (recursive)
+      return itemPath === scope || itemPath.startsWith(`${scope}/`)
+
+    return FileSystemPath.getParent(itemPath) === scope
   }
 
   async getDownloadUrl(path: string): Promise<string> {

@@ -159,11 +159,20 @@ export class PCloudClient {
     return codeMap[result] ?? 500 // Default to internal server error
   }
 
-  async listFolder(folderId: string | number): Promise<PCloudListFolderResponse> {
+  /**
+   * Lists a folder by id. With `recursive`, pCloud returns the whole subtree in
+   * one response (children nested under each folder's `contents`); note that in
+   * recursive mode nested items carry no `path`, only `name` + `parentfolderid`.
+   */
+  async listFolder(
+    folderId: string | number,
+    recursive: boolean = false,
+  ): Promise<PCloudListFolderResponse> {
+    const params: Record<string, unknown> = { folderid: folderId }
+    if (recursive)
+      params.recursive = 1
     return this.handleResponse(
-      await this.call<PCloudListFolderResponse>(PCLOUD_API_ENDPOINTS.FILES.LIST, {
-        folderid: folderId,
-      }),
+      await this.call<PCloudListFolderResponse>(PCLOUD_API_ENDPOINTS.FILES.LIST, params),
     )
   }
 
