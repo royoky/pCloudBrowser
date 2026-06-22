@@ -5,6 +5,8 @@
 
 import { PCloudResultCode } from '~~/server/constants/pcloud-result-codes'
 
+export { PCloudResultCode }
+
 // 1. Base Response Shape
 // pCloud always returns a 'result' number. If it's not 0, it includes an 'error' string.
 export interface PCloudBaseResponse {
@@ -31,7 +33,7 @@ export interface PCloudBaseMetadata {
   created: string // e.g., "Sat, 22 Sep 2012 10:23:41 +0000"
   modified: string
   isfolder: boolean
-  parentfolderid: number
+  parentfolderid?: number // Root folder has no parent
   icon: string
   ismine: boolean
   isshared: boolean
@@ -222,6 +224,34 @@ export interface PCloudMediaTranscodeLinkResponse extends PCloudBaseResponse {
 }
 
 // 4. Type Guards and Helpers
+
+/**
+ * Type guard to check if a PCloud item is a file.
+ * Uses the isfolder discriminator to safely narrow the type.
+ */
+export function isPCloudFile(item: PCloudItemMetadata): item is PCloudFileMetadata {
+  return item.isfolder === false
+}
+
+/**
+ * Type guard to check if a PCloud item is a folder.
+ * Uses the isfolder discriminator to safely narrow the type.
+ */
+export function isPCloudFolder(item: PCloudItemMetadata): item is PCloudFolderMetadata {
+  return item.isfolder === true
+}
+
+/**
+ * Extracts the ID from a PCloud item based on its type.
+ * Uses type guards to safely access the appropriate ID field.
+ */
+export function getPCloudItemId(item: PCloudItemMetadata): string {
+  if (isPCloudFolder(item)) {
+    return item.folderid.toString()
+  }
+  return item.fileid.toString()
+}
+
 export function isPCloudSuccess(response: PCloudBaseResponse): boolean {
   return response.result === PCloudResultCode.SUCCESS // Assuming SUCCESS is 0
 }

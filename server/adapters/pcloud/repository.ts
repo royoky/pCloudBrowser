@@ -29,7 +29,9 @@ import type {
   SearchOptions,
   TransferOptions,
 } from '~~/shared/domain/ports/file.repository'
+
 import { PCloudApiError, PCloudClient } from '~~/server/adapters/pcloud/client'
+import { getPCloudItemId, isPCloudFile } from '~~/server/models/pcloud-api'
 
 import { FileSystemPath, isFile, isFolder } from '~~/shared/domain/models/file-system.entity'
 
@@ -58,8 +60,8 @@ export interface PCloudRepositoryConfig {
  * In a production app, you might want a more sophisticated caching strategy
  */
 class PathIdCache {
-  private cache = new Map<string, string>()
-  private reverseCache = new Map<string, string>()
+  private readonly cache = new Map<string, string>()
+  private readonly reverseCache = new Map<string, string>()
 
   set(path: string, id: string): void {
     this.cache.set(path, id)
@@ -201,18 +203,8 @@ export class PCloudFileRepository implements FileRepository {
       const response = await this.client.getMetadata(path)
       const item = response.metadata
 
-      // Use type-safe property access based on isfolder discriminator
-      // Both PCloudFolderMetadata and PCloudFolderContents have folderid
-      // PCloudFileMetadata has fileid
-      let id: string
-      if (item.isfolder) {
-        // For folders, folderid is available (from PCloudFolderMetadata)
-        id = (item as unknown as { folderid: number }).folderid.toString()
-      }
-      else {
-        // For files, fileid is available (from PCloudFileMetadata)
-        id = (item as unknown as { fileid: number }).fileid.toString()
-      }
+      // Use type-safe helper to extract ID based on item type
+      const id = getPCloudItemId(item)
 
       // Cache the result
       this.pathIdCache.set(path, id)
@@ -273,13 +265,11 @@ export class PCloudFileRepository implements FileRepository {
     // Include images and videos regardless of thumbready: false just means the
     // thumbnail hasn't been pre-cached, not that it can't be generated.
     const imageFileIds = items
-      .filter((item) => {
-        if (item.isfolder)
-          return false
-        const mime = (item as PCloudFileMetadata).contenttype ?? ''
-        return mime.startsWith('image/') || mime.startsWith('video/')
-      })
-      .map(item => (item as PCloudFileMetadata).fileid.toString())
+      .filter(isPCloudFile)
+      .filter(item =>
+        item.contenttype.startsWith('image/') || item.contenttype.startsWith('video/'),
+      )
+      .map(item => item.fileid.toString())
 
     if (!imageFileIds.length)
       return new Map()
@@ -382,7 +372,8 @@ export class PCloudFileRepository implements FileRepository {
         }
       }
 
-      const id = isFile(item) ? await this.pathToId(path) : await this.pathToId(path)
+      // Use the ID already fetched by getByPath, not pathToId which makes another API call
+      const id = item.id
 
       if (isFile(item)) {
         await this.client.deleteFile(id)
@@ -415,8 +406,8 @@ export class PCloudFileRepository implements FileRepository {
     }
 
     const parentPath = FileSystemPath.getParent(path)
-    const _parentId = await this.pathToId(parentPath)
-    const itemId = isFile(item) ? await this.pathToId(path) : await this.pathToId(path)
+    // Use the ID already fetched by getByPath, not pathToId which makes another API call
+    const itemId = item.id
 
     if (isFile(item)) {
       const response = await this.client.renameFile(itemId, newName)
@@ -444,9 +435,8 @@ export class PCloudFileRepository implements FileRepository {
     }
 
     try {
-      const sourceId = isFile(sourceItem)
-        ? await this.pathToId(sourcePath)
-        : await this.pathToId(sourcePath)
+      // Use the ID already fetched by getByPath, not pathToId which makes another API call
+      const sourceId = sourceItem.id
       const destinationId = await this.pathToId(options.destinationPath)
 
       if (isFile(sourceItem)) {
@@ -491,9 +481,8 @@ export class PCloudFileRepository implements FileRepository {
     }
 
     try {
-      const sourceId = isFile(sourceItem)
-        ? await this.pathToId(sourcePath)
-        : await this.pathToId(sourcePath)
+      // Use the ID already fetched by getByPath, not pathToId which makes another API call
+      const sourceId = sourceItem.id
       const destinationId = await this.pathToId(options.destinationPath)
 
       if (isFile(sourceItem)) {

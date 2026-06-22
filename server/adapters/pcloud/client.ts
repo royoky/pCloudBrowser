@@ -30,8 +30,13 @@ import type {
 } from '~~/server/models/pcloud-api'
 
 import { $fetch } from 'ofetch'
+
 import { PCLOUD_API_ENDPOINTS } from '~~/server/constants/pcloud-endpoints'
-import { getPCloudErrorMessage, isPCloudSuccess } from '~~/server/models/pcloud-api'
+import {
+  getPCloudErrorMessage,
+  isPCloudSuccess,
+  PCloudResultCode,
+} from '~~/server/models/pcloud-api'
 
 /**
  * Configuration for the pCloud client
@@ -98,21 +103,39 @@ export class PCloudClient {
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`
     const start = Date.now()
-    const response = await $fetch<T>(url, {
+    // Fetch returns unknown to ensure type safety at the boundary
+    const response = await $fetch<unknown>(url, {
       method: 'GET',
       headers: this.headers,
       params,
       timeout: this.timeout,
     })
-    console.info(`[pCloud] ${endpoint} ${response.result} ${Date.now() - start}ms`)
-    return response
+    const validated = await this.handleResponse<T>(response)
+    console.info(`[pCloud] ${endpoint} ${validated.result} ${Date.now() - start}ms`)
+    return validated
+  }
+
+  /**
+   * Type guard to validate pCloud base response structure
+   */
+  private isPCloudBaseResponse(data: unknown): data is PCloudBaseResponse {
+    return typeof data === 'object'
+      && data !== null
+      && 'result' in data
+      && typeof (data as PCloudBaseResponse).result === 'number'
   }
 
   /**
    * Helper method to handle pCloud API responses
    * Throws PCloudApiError for unsuccessful responses
+   * Accepts unknown and validates it as PCloudBaseResponse
    */
-  private async handleResponse<T extends PCloudBaseResponse>(response: T): Promise<T> {
+  private async handleResponse<T extends PCloudBaseResponse>(response: unknown): Promise<T> {
+    // Validate that the response is a PCloudBaseResponse
+    if (!this.isPCloudBaseResponse(response)) {
+      throw new Error(`Invalid pCloud API response: ${JSON.stringify(response)}`)
+    }
+
     if (!isPCloudSuccess(response)) {
       const message
         = getPCloudErrorMessage(response) || `pCloud API returned error code: ${response.result}`
@@ -123,40 +146,61 @@ export class PCloudClient {
       throw new PCloudApiError(message, statusCode, response.result, response.error)
     }
 
-    return response
+    return response as T
   }
 
   /**
    * Maps pCloud result codes to HTTP-like status codes
-   * This helps with error handling consistency
+   * This helps with error handling consistency.
+   * Uses exhaustiveness check to catch unhandled result codes.
    */
   private mapResultToStatusCode(result: number): number {
-    const codeMap: Record<number, number> = {
-      // Authentication errors
-      1000: 401, // Wrong username/password
-      2000: 401, // Wrong auth token
+    // Map known pCloud result codes to HTTP status codes
+    // Uses a switch for exhaustiveness checking
+    switch (result) {
+      // Success
+      case PCloudResultCode.SUCCESS:
+        return 200
 
-      // Access errors
-      2001: 400, // Invalid parameters
-      2003: 403, // Access denied
+      // Authentication errors
+      case PCloudResultCode.AUTHORIZATION_ERROR:
+        return 401
 
       // Resource errors
-      2004: 409, // File/Folder already exists
-      2005: 404, // Directory does not exist
-      2006: 404, // File does not exist
-      2007: 404, // Parent folder does not exist
+      case PCloudResultCode.ALREADY_EXISTS:
+        return 409
+      case PCloudResultCode.NOT_FOUND:
+      case PCloudResultCode.SHARE_NOT_FOUND:
+        return 404
+
+      // Access errors
+      case PCloudResultCode.INVALID_PARAMS:
+        return 400
+      case PCloudResultCode.RATE_LIMIT:
+      case PCloudResultCode.SHARE_PERMISSION_DENIED:
+        return 403
 
       // Quota errors
-      2008: 402, // Quota exceeded
-
-      // Rate limiting
-      2041: 429, // Too many requests
+      case PCloudResultCode.FILE_TOO_LARGE:
+      case PCloudResultCode.STORAGE_QUOTA_EXCEEDED:
+        return 402
 
       // Server errors
-      4000: 503, // Service unavailable
-    }
+      case PCloudResultCode.MAINTENANCE:
+        return 503
 
-    return codeMap[result] ?? 500 // Default to internal server error
+      // Generic error
+      case PCloudResultCode.ERROR:
+      case PCloudResultCode.PARTIAL_ERROR:
+        return 400
+
+      // If a new PCloudResultCode is added but not handled here,
+      // this will cause a compile-time error due to the exhaustiveness check
+      default:
+        // For truly unknown codes (e.g., from future pCloud API changes),
+        // throw an error rather than silently defaulting
+        throw new Error(`Unhandled pCloud result code: ${result}`)
+    }
   }
 
   /**
@@ -290,8 +334,9 @@ export class PCloudClient {
    * upload work on stateless serverless runtimes.
    */
   async uploadCreate(): Promise<number> {
-    const res = await this.handleResponse(
-      await this.call<PCloudUploadCreateResponse>(PCLOUD_API_ENDPOINTS.FILES.UPLOAD_CREATE, {}),
+    const res = await this.call<PCloudUploadCreateResponse>(
+      PCLOUD_API_ENDPOINTS.FILES.UPLOAD_CREATE,
+      {},
     )
     return res.uploadid
   }
@@ -311,18 +356,21 @@ export class PCloudClient {
     })
     const url = `${this.baseUrl}${PCLOUD_API_ENDPOINTS.FILES.UPLOAD_WRITE}?${params}`
 
+    // Uint8Array is a valid BodyInit at runtime. The cast is needed due to
+    // TypeScript 5.7's change in Uint8Array generic parameter from BufferSource to ArrayBufferLike.
+    // This is safe because Uint8Array implements BufferSource.
     const response = await fetch(url, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${this.accessToken}` },
-      // Uint8Array is a valid fetch body at runtime; the cast only sidesteps
-      // TS 5.7's Uint8Array<ArrayBufferLike> vs BufferSource generic mismatch.
       body: data as BodyInit,
     })
 
     if (!response.ok) {
       throw new Error(`pCloud upload_write HTTP error: ${response.status} ${response.statusText}`)
     }
-    await this.handleResponse((await response.json()) as PCloudBaseResponse)
+    // Validate and handle the response
+    const json = await response.json()
+    await this.handleResponse(json)
   }
 
   /** Finalizes an upload session into a real file in the target folder. */
