@@ -26,12 +26,18 @@ const features = {
   copy: true,
   move: true,
 
+  // File creation
+  createFolder: true, // Enable "New Folder" button
+  createFile: true, // Enable "New File" button
+
+  // File editing
+  edit: true, // Enable "Save" for edited files
+
   // View options
   search: true,
   preview: true,
 
   // Disabled features
-  edit: false, // File editing
   archive: false, // Creating archives
   unarchive: false, // Extracting archives
 }
@@ -55,9 +61,9 @@ function handleReady() {
       <VueFinder
         v-if="loggedIn"
         id="pcloud-browser"
-        :driver="driver"
+        :driver
         :config="vueFinderConfig"
-        :features="features"
+        :features
         selection-mode="multiple"
         @ready="handleReady"
         @error="handleError"

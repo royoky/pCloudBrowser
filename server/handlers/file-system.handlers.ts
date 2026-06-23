@@ -16,6 +16,7 @@ import type { H3Event } from 'h3'
 import type {
   BatchResultDto,
   ContentDto,
+  SaveResultDto,
   SearchResultDto,
 } from '~~/shared/contracts/file-system.dto'
 import type { FileRepository } from '~~/shared/domain/ports/file.repository'
@@ -53,6 +54,19 @@ const createFolderBodySchema = z.object({
   parentPath: z.string(),
   name: z.string().min(1),
 })
+type CreateFolderBody = z.infer<typeof createFolderBodySchema>
+
+const createFileBodySchema = z.object({
+  parentPath: z.string(),
+  name: z.string().min(1),
+})
+type CreateFileBody = z.infer<typeof createFileBodySchema>
+
+const saveFileBodySchema = z.object({
+  path: z.string().min(1),
+  content: z.string(),
+})
+type SaveFileBody = z.infer<typeof saveFileBodySchema>
 
 const renameBodySchema = z.object({
   path: z.string(),
@@ -138,10 +152,37 @@ export const deleteHandler = defineEventHandler(async (event): Promise<BatchResu
 /** POST /api/{provider}/create-folder  { parentPath, name } */
 export const createFolderHandler = defineEventHandler(async (event) => {
   const repository = resolveRepository(event)
-  const { parentPath, name } = await readValidatedBody(event, createFolderBodySchema.parse)
+  const body = await readValidatedBody(event, createFolderBodySchema.parse) as CreateFolderBody
 
   try {
-    return toItemDto(await repository.createFolder(parentPath, name))
+    return toItemDto(await repository.createFolder(body))
+  }
+  catch (error) {
+    throw toHttpError(error)
+  }
+})
+
+/** POST /api/{provider}/create-file  { parentPath, name } */
+export const createFileHandler = defineEventHandler(async (event) => {
+  const repository = resolveRepository(event)
+  const body = await readValidatedBody(event, createFileBodySchema.parse) as CreateFileBody
+
+  try {
+    return toItemDto(await repository.createFile(body))
+  }
+  catch (error) {
+    throw toHttpError(error)
+  }
+})
+
+/** POST /api/{provider}/save-file  { path, content } */
+export const saveFileHandler = defineEventHandler(async (event): Promise<SaveResultDto> => {
+  const repository = resolveRepository(event)
+  const body = await readValidatedBody(event, saveFileBodySchema.parse) as SaveFileBody
+
+  try {
+    await repository.writeFileContent(body)
+    return { success: true }
   }
   catch (error) {
     throw toHttpError(error)

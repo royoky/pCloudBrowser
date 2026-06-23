@@ -79,6 +79,11 @@ export interface CreateUploadResultDto {
   uploadId: string
 }
 
+/** Result of a file save operation. */
+export interface SaveResultDto {
+  success: boolean
+}
+
 export interface UrlDto {
   url: string
 }

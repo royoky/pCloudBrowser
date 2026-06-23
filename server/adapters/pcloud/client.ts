@@ -11,6 +11,7 @@
  * - Error Handling: Consistent error handling approach
  */
 
+// Parameter types for object args principle
 import type {
   PCloudBaseResponse,
   PCloudCopyFileResponse,
@@ -19,6 +20,7 @@ import type {
   PCloudDeleteFileResponse,
   PCloudDeleteFolderRecursiveResponse,
   PCloudFileLinkResponse,
+  PCloudFileMetadata,
   PCloudListFolderResponse,
   PCloudMediaTranscodeLinkResponse,
   PCloudRenameFileResponse,
@@ -26,6 +28,7 @@ import type {
   PCloudThumbLinkResponse,
   PCloudThumbsLinksResponse,
   PCloudUploadCreateResponse,
+  PCloudUploadResponse,
   PCloudUploadSaveResponse,
 } from '~~/server/models/pcloud-api'
 
@@ -37,6 +40,24 @@ import {
   isPCloudSuccess,
   PCloudResultCode,
 } from '~~/server/models/pcloud-api'
+
+export interface CreateFolderParams {
+  parentId: string | number
+  name: string
+}
+
+export interface UploadFileParams {
+  folderId: string | number
+  name: string
+  mimeType: string
+  fileData: BlobPart
+}
+
+export interface WriteFileContentParams {
+  folderId: string | number
+  fileName: string
+  content: string
+}
 
 /**
  * Configuration for the pCloud client
@@ -220,11 +241,11 @@ export class PCloudClient {
     )
   }
 
-  async createFolder(parentId: string | number, name: string): Promise<PCloudCreateFolderResponse> {
+  async createFolder(params: CreateFolderParams): Promise<PCloudCreateFolderResponse> {
     return this.handleResponse(
       await this.call<PCloudCreateFolderResponse>(PCLOUD_API_ENDPOINTS.FILES.CREATE_FOLDER, {
-        folderid: parentId,
-        name,
+        folderid: params.parentId,
+        name: params.name,
       }),
     )
   }
@@ -436,5 +457,60 @@ export class PCloudClient {
         { path, transcodeahead: 1, mediatype: 'video' },
       ),
     )
+  }
+
+  /**
+   * Uploads a file using pCloud's one-shot upload endpoint.
+   * Uses FormData for multipart form data that pCloud expects.
+   */
+  async uploadFile(params: UploadFileParams): Promise<PCloudUploadResponse> {
+    const formData = new FormData()
+    formData.append('folderid', params.folderId.toString())
+    formData.append('nopartial', '1')
+    // fileData can be Uint8Array (ArrayBufferView) or ArrayBuffer, both accepted by Blob
+    formData.append('file', new Blob([params.fileData], { type: params.mimeType }), params.name)
+
+    const url = `${this.baseUrl}${PCLOUD_API_ENDPOINTS.FILES.UPLOAD}`
+    const start = Date.now()
+    // Do NOT pass Content-Type here — Node.js fetch sets multipart/form-data
+    // with the correct boundary automatically when given a FormData body.
+    // Forcing Content-Type: application/json (from this.headers) would corrupt
+    // the multipart request and cause pCloud to hang.
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${this.accessToken}` },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      throw new Error(`pCloud upload HTTP error: ${response.status} ${response.statusText}`)
+    }
+
+    const json = (await response.json()) as PCloudUploadResponse
+    console.info(
+      `[pCloud] POST ${PCLOUD_API_ENDPOINTS.FILES.UPLOAD} ${json.result} ${Date.now() - start}ms`,
+    )
+    return this.handleResponse(json)
+  }
+
+  /**
+   * Writes content to a file in pCloud.
+   * For text files, this creates or overwrites the file with the given content.
+   * Uses the upload-session API for consistency with the chunked upload flow.
+   */
+  async writeFileContent(params: WriteFileContentParams): Promise<PCloudFileMetadata> {
+    // Create upload session
+    const uploadId = await this.uploadCreate()
+
+    // Convert content to Uint8Array
+    const encoder = new TextEncoder()
+    const data = encoder.encode(params.content)
+
+    // Write the content as a single chunk
+    await this.uploadWrite(uploadId, 0, data)
+
+    // Save the upload session to finalize the file
+    const response = await this.uploadSave(uploadId, params.folderId, params.fileName)
+    return response.metadata
   }
 }

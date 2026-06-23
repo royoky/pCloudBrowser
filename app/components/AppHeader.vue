@@ -24,7 +24,7 @@ const items = computed<NavigationMenuItem[]>(() => [{
 }, {
   label: 'Releases',
   icon: 'i-lucide-rocket',
-  to: 'https://github.com/nuxt/ui/releases',
+  to: 'https://github.com/royoky/pCloudBrowser/releases',
   target: '_blank',
 }])
 </script>
@@ -55,7 +55,7 @@ const items = computed<NavigationMenuItem[]>(() => [{
         <UButton
           color="neutral"
           variant="ghost"
-          to="https://github.com/nuxt/ui"
+          to="https://github.com/royoky/pCloudBrowser"
           target="_blank"
           icon="i-simple-icons-github"
           aria-label="GitHub"

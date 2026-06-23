@@ -38,7 +38,37 @@ export interface ListOptions {
 }
 
 /**
- * Parameters for creating a new item
+ * Parameters for creating a new folder
+ */
+export interface CreateFolderOptions {
+  /** Path to the parent directory */
+  parentPath: string
+  /** Name of the new folder */
+  name: string
+}
+
+/**
+ * Parameters for creating a new file
+ */
+export interface CreateFileOptions {
+  /** Path to the parent directory */
+  parentPath: string
+  /** Name of the new file */
+  name: string
+}
+
+/**
+ * Parameters for writing file content
+ */
+export interface WriteFileContentOptions {
+  /** Path to the file */
+  path: string
+  /** The text content to write */
+  content: string
+}
+
+/**
+ * Parameters for creating a new item (legacy - prefer CreateFolderOptions/CreateFileOptions)
  */
 export interface CreateOptions {
   /** Name of the new item */
@@ -122,11 +152,26 @@ export interface FileRepository {
   /**
    * Creates a new folder
    *
-   * @param parentPath - Path to the parent directory
-   * @param name - Name of the new folder
+   * @param options - Folder creation parameters
    * @returns Promise resolving to the created folder
    */
-  createFolder: (parentPath: string, name: string) => Promise<FolderEntity>
+  createFolder: (options: CreateFolderOptions) => Promise<FolderEntity>
+
+  /**
+   * Creates a new empty file
+   *
+   * @param options - File creation parameters
+   * @returns Promise resolving to the created file
+   */
+  createFile: (options: CreateFileOptions) => Promise<FileEntity>
+
+  /**
+   * Writes content to a file (creates or overwrites)
+   *
+   * @param options - File write parameters
+   * @returns Promise resolving to the updated file
+   */
+  writeFileContent: (options: WriteFileContentOptions) => Promise<FileEntity>
 
   /**
    * Opens a resumable upload session.

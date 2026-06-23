@@ -20,6 +20,8 @@ import type {
 } from '~~/server/models/pcloud-api'
 
 import type {
+  CreateFileOptions,
+  CreateFolderOptions,
   FileEntity,
   FileOperationResult,
   FileRepository,
@@ -28,6 +30,7 @@ import type {
   ListOptions,
   SearchOptions,
   TransferOptions,
+  WriteFileContentOptions,
 } from '~~/shared/domain/ports/file.repository'
 
 import { PCloudApiError, PCloudClient } from '~~/server/adapters/pcloud/client'
@@ -331,12 +334,13 @@ export class PCloudFileRepository implements FileRepository {
     }
   }
 
-  async createFolder(parentPath: string, name: string): Promise<FolderEntity> {
+  async createFolder(options: CreateFolderOptions): Promise<FolderEntity> {
+    const { parentPath, name } = options
     // Get parent folder ID
     const parentId = await this.pathToId(parentPath)
 
     // Create folder via pCloud API
-    const response = await this.client.createFolder(parentId, name)
+    const response = await this.client.createFolder({ parentId, name })
     const pcloudFolder = response.metadata
 
     // Map to domain entity
@@ -344,6 +348,44 @@ export class PCloudFileRepository implements FileRepository {
       pcloudFolder,
       FileSystemPath.join(parentPath, name),
     )
+  }
+
+  async createFile(options: CreateFileOptions): Promise<FileEntity> {
+    const { parentPath, name } = options
+    const folderId = await this.pathToId(parentPath)
+    // Create an empty file using the one-shot upload with empty content
+    const response = await this.client.uploadFile({
+      folderId,
+      name,
+      mimeType: 'application/octet-stream',
+      fileData: new Uint8Array(),
+    })
+    if (!response.metadata?.length || !response.metadata[0]) {
+      throw new Error('No file metadata returned from upload')
+    }
+    return this.mapToFileEntity(response.metadata[0], parentPath)
+  }
+
+  async writeFileContent(options: WriteFileContentOptions): Promise<FileEntity> {
+    const { path, content } = options
+    const item = await this.getByPath(path)
+
+    if (!item || !isFile(item)) {
+      throw new Error(`File not found or not a file: ${path}`)
+    }
+
+    // Get the parent folder and file name from the path
+    const parentPath = FileSystemPath.getParent(path)
+    const fileName = FileSystemPath.getBasename(path)
+    const folderId = await this.pathToId(parentPath)
+
+    // Write content using upload session API
+    const pcloudFile = await this.client.writeFileContent({
+      folderId,
+      fileName,
+      content,
+    })
+    return this.mapToFileEntity(pcloudFile, parentPath)
   }
 
   async createUpload(): Promise<string> {

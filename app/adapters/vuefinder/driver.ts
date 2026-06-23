@@ -106,6 +106,24 @@ export function createVueFinderDriver(storage: string): VueFinderDriver {
       return list(toNeutral(params.path))
     },
 
+    async createFile(
+      params: { path: string, name: string },
+    ): Promise<VueFinderFileOperationResult> {
+      await $fetch(`${base}/create-file`, {
+        method: 'POST',
+        body: { parentPath: toNeutral(params.path), name: params.name },
+      })
+      return list(toNeutral(params.path))
+    },
+
+    async save(params: { path: string, content: string }): Promise<string> {
+      await $fetch(`${base}/save-file`, {
+        method: 'POST',
+        body: { path: toNeutral(params.path), content: params.content },
+      })
+      return params.path
+    },
+
     async search(params: VueFinderSearchParams): Promise<VueFinderDirEntry[]> {
       const result = await $fetch<SearchResultDto>(`${base}/search`, {
         params: {
@@ -154,12 +172,6 @@ export function createVueFinderDriver(storage: string): VueFinderDriver {
     },
     async unarchive(): Promise<VueFinderFileOperationResult> {
       throw new Error('Unarchive is not supported')
-    },
-    async createFile(): Promise<VueFinderFileOperationResult> {
-      throw new Error('Create file is not supported')
-    },
-    async save(): Promise<string> {
-      throw new Error('Save is not supported')
     },
   }
 }

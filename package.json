@@ -26,7 +26,7 @@
     "nuxt-auth-utils": "0.5.29",
     "tailwindcss": "^4.3.0",
     "vue": "latest",
-    "vuefinder": "^4.1.2",
+    "vuefinder": "^4.5.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {
