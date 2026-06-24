@@ -1,6 +1,8 @@
 # pCloud Browser
 
-A cloud file browser built with Nuxt 4 and Nuxt UI, using the [VueFinder](https://github.com/n1crack/vuefinder) file-manager UI. Currently wired to pCloud, with a hexagonal architecture designed so that both the cloud provider and the UI library can be swapped independently.
+A cloud file browser built with Nuxt 4 and Nuxt UI, using the [VueFinder](https://github.com/n1crack/vuefinder) file-manager UI. The VueFinder file menu is fully wired with **New folder** and **New file** actions. The application uses a hexagonal architecture designed so that both the cloud provider and the UI library can be swapped independently.
+
+The codebase enforces **TypeScript best practices** including strict type boundaries, discriminated unions, branded types, and exhaustive checks.
 
 ## Tech stack
 
@@ -58,6 +60,8 @@ All endpoints live under `/api/{provider}` (currently `pcloud`) and mirror the `
 | `POST /api/pcloud/move` | Move items |
 | `POST /api/pcloud/delete` | Delete items (`{ paths }`) |
 | `POST /api/pcloud/create-folder` | Create a folder (`{ parentPath, name }`) |
+| `POST /api/pcloud/create-file` | Create a new empty file (`{ parentPath, name }`) |
+| `POST /api/pcloud/save-file` | Write text content to a file (`{ path, content }`) |
 | `PATCH /api/pcloud/items` | Rename (`{ path, newName }`) |
 | `GET /api/pcloud/search` | Search |
 | `GET /api/pcloud/content?path=` | Read text content |
@@ -152,7 +156,7 @@ Two features rely on pCloud endpoints that are absent from the public docs but u
 
 ## Status & limitations
 
-- File browsing, copy, move, delete, rename, create-folder, search, download, preview (image thumbnails + video), chunked upload and HLS video streaming are implemented end-to-end.
+- File browsing, copy, move, delete, rename, create-folder, **create-file**, search, download, preview (image thumbnails + video), chunked upload and HLS video streaming are implemented end-to-end.
 - Upload is uniformly chunked — even small files take 3+ requests (`create`/`write`/`save`). A one-shot fast path for small files is a possible optimization, not yet done.
 - VueFinder ships a global, unlayered CSS bundle that can override Nuxt UI utilities; keep that in mind when styling outside the file browser.
 
