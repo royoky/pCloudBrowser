@@ -261,7 +261,7 @@ export interface FileRepository {
    * @param path - Path to the file
    * @returns Promise resolving to the preview URL, or null if not previewable
    */
-  getPreviewUrl: (path: string) => Promise<string | null>
+  getPreviewUrl: (path: string, thumb?: boolean) => Promise<string | null>
 
   /**
    * Gets a streaming URL for media files (e.g., an HLS m3u8 playlist).

@@ -351,10 +351,17 @@ async function proxyM3u8(event: H3Event, m3u8Url: string): Promise<void> {
   return send(event, rewritten)
 }
 
-/** GET /api/{provider}/preview?path=… */
+const previewQuerySchema = z.object({
+  path: z.string().min(1),
+  // ?thumb=1 — return a scaled thumbnail instead of the full image.
+  // Used by the grid view; the preview modal omits this flag for full resolution.
+  thumb: z.string().optional().transform(v => v === '1' || v === 'true'),
+})
+
+/** GET /api/{provider}/preview?path=…[&thumb=1] */
 export const previewHandler = defineEventHandler(async (event) => {
   const repository = resolveRepository(event)
-  const { path } = await getValidatedQuery(event, requiredPathSchema.parse)
+  const { path, thumb } = await getValidatedQuery(event, previewQuerySchema.parse)
 
   try {
     if (isVideoPath(path)) {
@@ -368,7 +375,7 @@ export const previewHandler = defineEventHandler(async (event) => {
       return proxyVideoStream(event, cdnUrl)
     }
 
-    const url = await repository.getPreviewUrl(path)
+    const url = await repository.getPreviewUrl(path, thumb)
     if (!url) {
       throw createError({
         statusCode: 415,

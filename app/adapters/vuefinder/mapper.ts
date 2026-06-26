@@ -37,8 +37,12 @@ export function toDirEntry(storage: string, dto: FileSystemItemDto): VueFinderDi
       extension: dto.extension,
       file_size: dto.size,
       mime_type: dto.mimeType,
-      // Route thumbnails through our proxy — direct CDN URLs (eth*.pcloud.com)
+      // Route previews through our proxy — direct CDN URLs (eth*.pcloud.com)
       // get blocked by ORB when the browser auto-sends pCloud cookies cross-site.
+      // VueFinder uses previewUrl for the grid thumbnail, the preview modal, and
+      // the edit modal — so the same URL serves all three. We use the full image
+      // rather than a thumbnail so that the preview modal and edit view show the
+      // real content rather than a scaled-down version.
       previewUrl: dto.hasThumbnail
         ? `/api/${storage}/preview?path=${encodeURIComponent(dto.path)}`
         : undefined,

@@ -399,8 +399,24 @@ export class PCloudFileRepository implements FileRepository {
 
   async saveUpload(uploadId: string, parentPath: string, name: string): Promise<FileEntity> {
     const folderId = await this.pathToId(parentPath)
-    const response = await this.client.uploadSave(uploadId, folderId, name)
-    return this.mapToFileEntity(response.metadata, parentPath)
+
+    try {
+      const response = await this.client.uploadSave(uploadId, folderId, name)
+      return this.mapToFileEntity(response.metadata, parentPath)
+    }
+    catch (error) {
+      // pCloud has no overwrite flag on upload_save — it returns 2004 when a
+      // file with the same name already exists. Delete the old file and retry.
+      if (!(error instanceof PCloudApiError) || error.pCloudResult !== 2004)
+        throw error
+
+      const existing = await this.getByPath(FileSystemPath.join(parentPath, name))
+      if (existing && isFile(existing))
+        await this.client.deleteFile(existing.id)
+
+      const response = await this.client.uploadSave(uploadId, folderId, name)
+      return this.mapToFileEntity(response.metadata, parentPath)
+    }
   }
 
   async delete(path: string, _permanent: boolean = false): Promise<FileOperationResult> {
@@ -641,7 +657,7 @@ export class PCloudFileRepository implements FileRepository {
     return `https://${response.hosts[0]}${response.path}`
   }
 
-  async getPreviewUrl(path: string): Promise<string | null> {
+  async getPreviewUrl(path: string, thumb: boolean = false): Promise<string | null> {
     const item = await this.getByPath(path)
     if (!item || !isFile(item))
       return null
@@ -656,10 +672,10 @@ export class PCloudFileRepository implements FileRepository {
     if (!isPreviewable)
       return null
 
-    // Images: serve a scaled thumbnail. Check the module-level cache first —
-    // list() pre-populates it via getthumbslinks so most preview requests are
-    // a cache hit and skip the extra getthumblink round-trip.
-    if (isImage) {
+    // Grid view requests a scaled thumbnail (thumb=true) for fast rendering;
+    // the preview modal requests the full image (thumb=false, the default).
+    // Thumbnails are only available for images; other types always get the full link.
+    if (thumb && isImage) {
       const cached = thumbnailCdnCache.get(item.id)
       if (cached && cached.expiresAt > Date.now())
         return cached.url

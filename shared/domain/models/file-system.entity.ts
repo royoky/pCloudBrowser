@@ -124,7 +124,7 @@ export const FileSystemPath = {
    */
   getBasename(path: string): string {
     const segments = path.split('/').filter(Boolean)
-    return segments.at(1) || path
+    return segments.at(-1) || path
   },
 
   /**

@@ -18,7 +18,14 @@ export function toVueFinderPath(storage: string, neutralPath: string): string {
 export function toNeutralPath(storage: string, vueFinderPath: string | undefined): string {
   if (!vueFinderPath)
     return '/'
-  const relative = trimSlashes(vueFinderPath.replace(`${storage}://`, ''))
+  // VueFinder uses "{storage}://{relative}" for navigation but "{storage}:" (no
+  // double slash) in the edit/save Uppy context — strip both forms.
+  let withoutPrefix = vueFinderPath
+  if (vueFinderPath.startsWith(`${storage}://`))
+    withoutPrefix = vueFinderPath.slice(`${storage}://`.length)
+  else if (vueFinderPath.startsWith(`${storage}:`))
+    withoutPrefix = vueFinderPath.slice(`${storage}:`.length)
+  const relative = trimSlashes(withoutPrefix)
   return relative ? `/${relative}` : '/'
 }
 
