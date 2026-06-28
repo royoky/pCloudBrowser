@@ -1,20 +1,7 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
 
-// Custom color-mode toggle instead of <UColorModeButton />.
-// That button swaps its sun/moon icons purely via CSS
-// (`hidden dark:inline-block`), which VueFinder's global, unlayered
-// `.hidden { display: none }` clobbers — leaving the moon stuck hidden.
-// Driving a single icon from JS sidesteps that cascade entirely.
-// We use @nuxtjs/color-mode's useColorMode() (the same state Nuxt UI relies
-// on), not VueUse's, to avoid running two competing color-mode systems.
-const colorMode = useColorMode()
-const isDark = computed({
-  get: () => colorMode.value === 'dark',
-  set: (value) => {
-    colorMode.preference = value ? 'dark' : 'light'
-  },
-})
+const { loggedIn, clear } = useUserSession()
 
 const items = computed<NavigationMenuItem[]>(() => [{
   label: 'Figma',
@@ -38,18 +25,17 @@ const items = computed<NavigationMenuItem[]>(() => [{
     <UNavigationMenu :items />
 
     <template #right>
-      <ClientOnly>
+      <UTooltip v-if="loggedIn" text="Logout">
         <UButton
-          :icon="isDark ? 'i-lucide-moon' : 'i-lucide-sun'"
           color="neutral"
           variant="ghost"
-          :aria-label="`Switch to ${isDark ? 'light' : 'dark'} mode`"
-          @click="isDark = !isDark"
+          icon="i-lucide-log-out"
+          aria-label="Logout"
+          @click="clear"
         />
-        <template #fallback>
-          <UButton color="neutral" variant="ghost" disabled icon="i-lucide-sun" />
-        </template>
-      </ClientOnly>
+      </UTooltip>
+
+      <UColorModeButton />
 
       <UTooltip text="Open on GitHub" :kbds="['meta', 'G']">
         <UButton

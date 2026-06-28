@@ -13,6 +13,8 @@ export default defineEventHandler(async (event) => {
 
   const code = query.code as string
   const hostname = query.hostname as string
+  const rawState = query.state as string | undefined
+  const accessMode: 'full' | 'appfolder' = rawState === 'appfolder' ? 'appfolder' : 'full'
 
   if (!code || !hostname) {
     throw createError({
@@ -21,13 +23,20 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  const clientId = (
+    accessMode === 'appfolder' ? config.appClientIdAppFolder : config.appClientIdFull
+  ) as string
+  const clientSecret = (
+    accessMode === 'appfolder' ? config.appClientSecretAppFolder : config.appClientSecretFull
+  ) as string
+
   try {
     const tokenUrl = `https://${hostname}/oauth2_token`
     const tokenResponse = await $fetch<PCloudTokenResponse>(tokenUrl, {
       method: 'POST',
       params: {
-        client_id: config.appClientId,
-        client_secret: config.appClientSecret,
+        client_id: clientId,
+        client_secret: clientSecret,
         code,
       },
     })
@@ -72,6 +81,7 @@ export default defineEventHandler(async (event) => {
       },
       pcloudAccessToken: accessToken,
       pcloudApiHostname: hostname,
+      pcloudAccessMode: accessMode,
     })
 
     return sendRedirect(event, '/')

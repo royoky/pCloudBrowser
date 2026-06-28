@@ -10,12 +10,13 @@ export default defineNuxtConfig({
     '@nuxt/ui',
   ],
 
-  // VueFinder CSS
-  css: ['~/assets/css/main.css', 'vuefinder/dist/vuefinder.css'],
+  css: ['~/assets/css/main.css'],
 
   runtimeConfig: {
-    appClientSecret: '',
-    appClientId: '',
+    appClientIdFull: '',
+    appClientSecretFull: '',
+    appClientIdAppFolder: '',
+    appClientSecretAppFolder: '',
   },
 
   eslint: {

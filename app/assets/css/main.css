@@ -1,2 +1,8 @@
+/* Declare vuefinder layer first so it sits below all Tailwind layers in the cascade.
+   This prevents VueFinder's unlayered Tailwind v3 utilities (e.g. .inline-flex)
+   from overriding Tailwind v4's @layer utilities (e.g. lg:hidden). */
+@layer vuefinder;
+
 @import "tailwindcss";
 @import "@nuxt/ui";
+@import "vuefinder/dist/vuefinder.css" layer(vuefinder);

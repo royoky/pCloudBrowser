@@ -80,22 +80,24 @@ The handlers are provider-agnostic (`server/handlers/file-system.handlers.ts`); 
 
 - Node.js 24+
 - pnpm 11+
-- A pCloud account and a registered pCloud OAuth2 app
+- A pCloud account and two registered pCloud OAuth2 apps (one for full-access, one for app-folder-only)
 
 ### Installation
 
 ```bash
 pnpm install
 cp .env.example .env
-# Fill in your pCloud OAuth2 credentials (see .env.example for the exact names).
-# They populate runtimeConfig.appClientId / runtimeConfig.appClientSecret.
+# Fill in the four pCloud OAuth2 credentials (see .env.example).
+# NUXT_APP_CLIENT_ID_FULL / NUXT_APP_CLIENT_SECRET_FULL       → full-access app
+# NUXT_APP_CLIENT_ID_APP_FOLDER / NUXT_APP_CLIENT_SECRET_APP_FOLDER → app-folder app
 ```
 
 ### Authentication flow
 
-1. The user opens `/auth/pcloud`, which redirects to pCloud's OAuth2 authorize endpoint.
-2. pCloud redirects back to `/api/pcloud/auth/callback`, which exchanges the code, fetches user info, and stores the session (via `nuxt-auth-utils`).
-3. The client reads the session with `useUserSession()`; once `loggedIn`, VueFinder renders. The access token stays server-side and is read by the auth middleware on each `/api/*` request.
+1. The login page offers two buttons: **Full access** (`/auth/pcloud?scope=full`) and **App folder only** (`/auth/pcloud?scope=appfolder`). Each targets a different registered OAuth2 app.
+2. `/auth/pcloud` picks the matching `client_id` based on `scope`, encodes the scope as the OAuth `state` parameter, and redirects to pCloud's authorize endpoint.
+3. pCloud redirects back to `/api/pcloud/auth/callback` with the code and `state`. The callback reads `state` to select the right `client_secret`, exchanges the code for a token, fetches user info, and stores the session (via `nuxt-auth-utils`), including `pcloudAccessMode`.
+4. The client reads the session with `useUserSession()`; once `loggedIn`, VueFinder renders. The access token stays server-side and is read by the auth middleware on each `/api/*` request.
 
 ## Development
 
