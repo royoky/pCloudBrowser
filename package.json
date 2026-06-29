@@ -24,6 +24,7 @@
     "luxon": "^3.7.2",
     "nuxt": "^4.4.6",
     "nuxt-auth-utils": "0.5.29",
+    "pretty-bytes": "^7.1.0",
     "tailwindcss": "^4.3.0",
     "vue": "latest",
     "vuefinder": "^4.5.5",

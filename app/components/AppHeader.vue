@@ -1,39 +1,15 @@
 <script setup lang="ts">
-import type { NavigationMenuItem } from '@nuxt/ui'
-
-const { loggedIn, clear } = useUserSession()
-
-const items = computed<NavigationMenuItem[]>(() => [{
-  label: 'Figma',
-  icon: 'i-simple-icons-figma',
-  to: 'https://go.nuxt.com/figma-ui',
-  target: '_blank',
-}, {
-  label: 'Releases',
-  icon: 'i-lucide-rocket',
-  to: 'https://github.com/royoky/pCloudBrowser/releases',
-  target: '_blank',
-}])
+const { loggedIn } = usePCloudAccount()
 </script>
 
 <template>
-  <UHeader toggle-side="left">
+  <UHeader>
     <template #title>
       PCloudBrowser
     </template>
 
-    <UNavigationMenu :items />
-
     <template #right>
-      <UTooltip v-if="loggedIn" text="Logout">
-        <UButton
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-log-out"
-          aria-label="Logout"
-          @click="clear"
-        />
-      </UTooltip>
+      <AppUserMenu v-if="loggedIn" />
 
       <UColorModeButton />
 
@@ -47,10 +23,6 @@ const items = computed<NavigationMenuItem[]>(() => [{
           aria-label="GitHub"
         />
       </UTooltip>
-    </template>
-
-    <template #body>
-      <UNavigationMenu :items orientation="vertical" class="-mx-2.5" />
     </template>
   </UHeader>
 </template>
