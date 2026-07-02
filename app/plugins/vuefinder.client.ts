@@ -10,5 +10,13 @@ import { createVueFinderDriver } from '~/adapters/vuefinder'
 
 export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.use(VueFinder)
-  nuxtApp.provide('vueFinderDriver', createVueFinderDriver('pcloud'))
+
+  // Surface load/navigation errors (which VueFinder swallows) through the same
+  // Nuxt UI toast channel that AppFileExplorer uses for @notify.
+  const toast = useToast()
+  const onLoadError = (message: string): void => {
+    toast.add({ title: 'Error', description: message, color: 'error' })
+  }
+
+  nuxtApp.provide('vueFinderDriver', createVueFinderDriver('pcloud', { onLoadError }))
 })

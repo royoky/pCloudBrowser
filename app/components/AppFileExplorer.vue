@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ConfigDefaults } from 'vuefinder'
+import type { ConfigDefaults, NotifyPayload } from 'vuefinder'
 
 const { $vueFinderDriver: driver } = useNuxtApp()
 const colorMode = useColorMode()
@@ -9,6 +9,9 @@ const vueFinderConfig = computed<ConfigDefaults>(() => ({
   view: 'grid',
   persist: true,
   maxFileSize: '1000mb',
+  // Disable VueFinder's built-in Sonner toasts; we render notifications
+  // through Nuxt UI's useToast (via @notify) for a consistent look.
+  notificationsEnabled: false,
 }))
 
 const features = {
@@ -27,12 +30,17 @@ const features = {
   unarchive: false,
 }
 
-function handleError(_error: unknown) {
-  // Error is handled by VueFinder's built-in error display
+const toast = useToast()
+
+const NOTIFY_TITLES: Record<NotifyPayload['type'], string> = {
+  success: 'Success',
+  error: 'Error',
+  info: 'Info',
+  warning: 'Warning',
 }
 
-function handleReady() {
-  // VueFinder is initialized and ready to use
+function handleNotify({ type, message }: NotifyPayload) {
+  toast.add({ title: NOTIFY_TITLES[type], description: message, color: type })
 }
 </script>
 
@@ -45,8 +53,7 @@ function handleReady() {
         :config="vueFinderConfig"
         :features
         selection-mode="multiple"
-        @ready="handleReady"
-        @error="handleError"
+        @notify="handleNotify"
       />
     </div>
   </ClientOnly>

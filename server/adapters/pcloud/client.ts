@@ -192,6 +192,7 @@ export class PCloudClient {
         return 409
       case PCloudResultCode.NOT_FOUND:
       case PCloudResultCode.SHARE_NOT_FOUND:
+      case PCloudResultCode.FILE_OR_FOLDER_NOT_FOUND:
         return 404
 
       // Access errors
@@ -215,12 +216,10 @@ export class PCloudClient {
       case PCloudResultCode.PARTIAL_ERROR:
         return 400
 
-      // If a new PCloudResultCode is added but not handled here,
-      // this will cause a compile-time error due to the exhaustiveness check
       default:
-        // For truly unknown codes (e.g., from future pCloud API changes),
-        // throw an error rather than silently defaulting
-        throw new Error(`Unhandled pCloud result code: ${result}`)
+        // Unknown code from a future or undocumented pCloud API change —
+        // return 500 so the caller gets a clean HTTP error instead of a crash.
+        return 500
     }
   }
 

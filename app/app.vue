@@ -12,7 +12,7 @@ useHead({
 </script>
 
 <template>
-  <UApp>
+  <UApp :toaster="{ position: 'top-center' }">
     <AppHeader />
     <UMain>
       <NuxtPage />

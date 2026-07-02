@@ -6,8 +6,16 @@
  * This is the ONLY VueFinder-aware code; swapping the file-manager library
  * means replacing this adapter, with no change to the server.
  *
- * Errors are intentionally NOT swallowed — they propagate to VueFinder's
- * `@error` handler so failures are visible instead of showing an empty view.
+ * Errors from *operations* (rename/delete/copy/…) are intentionally NOT
+ * swallowed — VueFinder's modals catch them and raise `@notify`/`@error`,
+ * so they surface as toasts.
+ *
+ * Load/navigation errors are different: VueFinder fires `adapter.open()` as a
+ * floating promise (VueFinderView.vue), so a failed listing never reaches
+ * `@notify`, the loading spinner never clears, and the rejection is unhandled.
+ * We therefore catch load failures in the public `list()` below: toast via the
+ * injected `onLoadError`, then keep the user on their last good folder (or fall
+ * back to the storage root on first load) so the UI stays usable.
  */
 
 import type { Uppy } from '@uppy/core'
@@ -37,11 +45,30 @@ import { ChunkedUploader } from './chunked-uploader'
 import { toDirEntry, toFsData } from './mapper'
 import { toNeutralPath } from './path'
 
+/** Options for wiring the driver to host-app concerns (e.g. notifications). */
+export interface VueFinderDriverOptions {
+  /**
+   * Called when a folder *listing* fails. Lets the host surface a toast for
+   * load/navigation errors that VueFinder itself swallows (see file header).
+   */
+  onLoadError?: (message: string) => void
+}
+
+/** Best-effort human-readable message from a `$fetch` error. */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error)
+    return (error as { data?: { message?: string } }).data?.message ?? error.message
+  return 'An unexpected error occurred'
+}
+
 /**
  * Creates a VueFinder driver bound to a single storage/provider
  * (e.g. 'pcloud' -> /api/pcloud/*).
  */
-export function createVueFinderDriver(storage: string): VueFinderDriver {
+export function createVueFinderDriver(
+  storage: string,
+  options: VueFinderDriverOptions = {},
+): VueFinderDriver {
   const base = `/api/${storage}`
 
   /** Lists a neutral path and maps it to VueFinder FsData. */
@@ -52,9 +79,30 @@ export function createVueFinderDriver(storage: string): VueFinderDriver {
   const toNeutral = (vueFinderPath: string | undefined): string =>
     toNeutralPath(storage, vueFinderPath)
 
+  // Last successfully-listed folder, used to keep the view stable when a
+  // navigation fails (VueFinder gives us no load-error hook — see header).
+  let lastGood: VueFinderFsData | undefined
+
   return {
-    list(params?: VueFinderListParams): Promise<VueFinderFsData> {
-      return list(toNeutral(params?.path))
+    async list(params?: VueFinderListParams): Promise<VueFinderFsData> {
+      const neutralPath = toNeutral(params?.path)
+      try {
+        lastGood = await list(neutralPath)
+        return lastGood
+      }
+      catch (error) {
+        options.onLoadError?.(getErrorMessage(error))
+        // Stay on the last good folder if we have one.
+        if (lastGood)
+          return lastGood
+        // First load failed (e.g. a stale persisted path): fall back to the
+        // storage root so the app is usable rather than stuck on a spinner.
+        if (neutralPath !== '/') {
+          lastGood = await list('/')
+          return lastGood
+        }
+        throw error
+      }
     },
 
     async copy(params: VueFinderTransferParams): Promise<VueFinderFileOperationResult> {
