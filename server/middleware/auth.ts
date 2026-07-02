@@ -1,5 +1,15 @@
 export default defineEventHandler(async (event) => {
-  const session = await getUserSession(event)
+  let session: Awaited<ReturnType<typeof getUserSession>>
+  try {
+    session = await getUserSession(event)
+  }
+  catch {
+    throw createError({
+      statusCode: 503,
+      statusMessage: 'SERVICE_UNAVAILABLE',
+      message: 'Server misconfiguration — check environment variables (NUXT_SESSION_PASSWORD)',
+    })
+  }
   const token = session.pcloudAccessToken
   const hostname = session.pcloudApiHostname
 

@@ -20,6 +20,12 @@ export const PCLOUD_API_ENDPOINTS = {
     MOVE_FOLDER: '/renamefolder',
     MOVE_FILE: '/renamefile',
     UPLOAD: '/uploadfile',
+    // Resumable upload-session API (undocumented over HTTP but OAuth2-compatible,
+    // unlike the fileops family which is auth-token only). What pCloud's own
+    // client uses for large files; lets us chunk past the platform body limit.
+    UPLOAD_CREATE: '/upload_create',
+    UPLOAD_WRITE: '/upload_write',
+    UPLOAD_SAVE: '/upload_save',
     UPLOAD_LINK: '/createuploadlink', // For generating signed upload URLs
     DOWNLOAD: '/getfilelink',
     FILE_PUBLISH: '/getfilepublink',
@@ -39,6 +45,12 @@ export const PCLOUD_API_ENDPOINTS = {
   },
   THUMBNAILS: {
     GET: '/getthumb',
+    GET_LINK: '/getthumblink',
+    GET_LINKS: '/getthumbslinks',
+  },
+  STREAMING: {
+    // Undocumented but used by pCloud's own app — returns HLS + original variants
+    TRANSCODE_LINK: '/getmediatranscodelink',
   },
 } as const
 

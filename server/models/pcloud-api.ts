@@ -3,7 +3,9 @@
  * Based on pCloud HTTP JSON Protocol
  */
 
-import { PCloudResultCode } from '../constants/pcloud-result-codes'
+import { PCloudResultCode } from '~~/server/constants/pcloud-result-codes'
+
+export { PCloudResultCode }
 
 // 1. Base Response Shape
 // pCloud always returns a 'result' number. If it's not 0, it includes an 'error' string.
@@ -31,7 +33,7 @@ export interface PCloudBaseMetadata {
   created: string // e.g., "Sat, 22 Sep 2012 10:23:41 +0000"
   modified: string
   isfolder: boolean
-  parentfolderid: number
+  parentfolderid?: number // Root folder has no parent
   icon: string
   ismine: boolean
   isshared: boolean
@@ -148,6 +150,16 @@ export interface PCloudUploadResponse extends PCloudBaseResponse {
   checksums: string[] // Array of checksums for uploaded files
 }
 
+/** Response from upload_create (resumable upload session). */
+export interface PCloudUploadCreateResponse extends PCloudBaseResponse {
+  uploadid: number
+}
+
+/** Response from upload_save — finalizes a session into a single file. */
+export interface PCloudUploadSaveResponse extends PCloudBaseResponse {
+  metadata: PCloudFileMetadata
+}
+
 export interface PCloudUploadUrlResponse extends PCloudBaseResponse {
   uploadlinkid: number
   link: string
@@ -169,7 +181,77 @@ export interface PCloudRenameFileResponse extends PCloudBaseResponse {
   metadata: PCloudFileMetadata
 }
 
+/** Response from getthumblink */
+export interface PCloudThumbLinkResponse extends PCloudBaseResponse {
+  size: string
+  path: string
+  expires: string
+  hosts: string[]
+}
+
+/** Single entry in getthumbslinks response */
+export interface PCloudThumbEntry {
+  fileid: number
+  result: number
+  path?: string
+  hosts?: string[]
+  expires?: string
+  size?: string
+  error?: string
+}
+
+/** Response from getthumbslinks */
+export interface PCloudThumbsLinksResponse extends PCloudBaseResponse {
+  thumbs: PCloudThumbEntry[]
+}
+
+/** One variant returned by getmediatranscodelink */
+export interface PCloudMediaTranscodeVariant {
+  dwltag?: string
+  transcodetype: 'hls' | 'original' | (string & {})
+  expires: string
+  isoriginal: boolean
+  path: string
+  hosts: string[]
+  ips?: string[]
+  hash?: number
+  size?: number
+}
+
+/** Response from getmediatranscodelink */
+export interface PCloudMediaTranscodeLinkResponse extends PCloudBaseResponse {
+  variants: PCloudMediaTranscodeVariant[]
+}
+
 // 4. Type Guards and Helpers
+
+/**
+ * Type guard to check if a PCloud item is a file.
+ * Uses the isfolder discriminator to safely narrow the type.
+ */
+export function isPCloudFile(item: PCloudItemMetadata): item is PCloudFileMetadata {
+  return item.isfolder === false
+}
+
+/**
+ * Type guard to check if a PCloud item is a folder.
+ * Uses the isfolder discriminator to safely narrow the type.
+ */
+export function isPCloudFolder(item: PCloudItemMetadata): item is PCloudFolderMetadata {
+  return item.isfolder === true
+}
+
+/**
+ * Extracts the ID from a PCloud item based on its type.
+ * Uses type guards to safely access the appropriate ID field.
+ */
+export function getPCloudItemId(item: PCloudItemMetadata): string {
+  if (isPCloudFolder(item)) {
+    return item.folderid.toString()
+  }
+  return item.fileid.toString()
+}
+
 export function isPCloudSuccess(response: PCloudBaseResponse): boolean {
   return response.result === PCloudResultCode.SUCCESS // Assuming SUCCESS is 0
 }

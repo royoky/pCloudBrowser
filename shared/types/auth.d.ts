@@ -14,6 +14,7 @@ declare module '#auth-utils' {
   interface UserSession {
     pcloudAccessToken?: string
     pcloudApiHostname?: string
+    pcloudAccessMode?: 'full' | 'appfolder'
   }
 }
 

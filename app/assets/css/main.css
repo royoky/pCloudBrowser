@@ -1,0 +1,9 @@
+/* Establish layer order explicitly.
+   vuefinder sits above base (so Tailwind Preflight doesn't reset VueFinder layouts)
+   but below utilities (so Tailwind v4 utilities like lg:hidden still override
+   VueFinder's bundled Tailwind v3 classes like .inline-flex). */
+@layer theme, base, vuefinder, components, utilities;
+
+@import "tailwindcss";
+@import "@nuxt/ui";
+@import "vuefinder/dist/vuefinder.css" layer(vuefinder);

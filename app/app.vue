@@ -12,18 +12,10 @@ useHead({
 </script>
 
 <template>
-  <div>
-    <VApp>
-      <VLayout>
-        <AppHeader />
-        <AppMenu />
-        <VFooter app class="d-flex justify-center align-center">
-          <div>App Footer</div>
-        </VFooter>
-        <VMain>
-          <NuxtPage />
-        </VMain>
-      </VLayout>
-    </VApp>
-  </div>
+  <UApp :toaster="{ position: 'top-center' }">
+    <AppHeader />
+    <UMain>
+      <NuxtPage />
+    </UMain>
+  </UApp>
 </template>

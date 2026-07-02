@@ -1,16 +1,13 @@
 <script setup lang="ts">
 const { loggedIn } = useUserSession()
+
+const containerClass
+  = 'h-[calc(100vh-var(--ui-header-height))] max-w-(--ui-container) mx-auto px-4 sm:px-6 lg:px-8'
 </script>
 
 <template>
-  <div
-    class="d-flex justify-center pa-6 ps-12 h-100"
-    :class="[loggedIn ? 'align-top' : 'align-center']"
-  >
+  <div :class="containerClass">
     <AppFileExplorer v-if="loggedIn" />
-
-    <VBtn v-else class="text-none" append-icon="mdi-login" href="/auth/pcloud">
-      <span>Login</span>
-    </VBtn>
+    <AppLoginPrompt v-else />
   </div>
 </template>

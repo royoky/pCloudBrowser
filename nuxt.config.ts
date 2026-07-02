@@ -6,37 +6,17 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
     '@vueuse/nuxt',
-    [
-      'vuetify-nuxt-module',
-      {
-        moduleOptions: {
-          labComponents: [
-            'VFileUpload',
-            'VFileUploadDropzone',
-            'VFileUploadList',
-            'VFileUploadItem',
-          ],
-          ssrClientHintsConfiguration: {
-            reloadOnFirstRequest: true,
-            viewportSize: true,
-            prefersColorScheme: true,
-            prefersColorSchemeOptions: {
-              useBrowserThemeOnly: false,
-            },
-          },
-        },
-        vuetifyOptions: './vuetify.config.ts',
-      },
-    ],
     'nuxt-auth-utils',
+    '@nuxt/ui',
   ],
 
+  css: ['~/assets/css/main.css'],
+
   runtimeConfig: {
-    appClientSecret: '',
-    appClientId: '',
-    public: {
-      baseUrl: '',
-    },
+    appClientIdFull: '',
+    appClientSecretFull: '',
+    appClientIdAppFolder: '',
+    appClientSecretAppFolder: '',
   },
 
   eslint: {
@@ -46,6 +26,7 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    preset: 'cloudflare_pages',
     experimental: {
       openAPI: true,
     },

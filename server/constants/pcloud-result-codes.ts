@@ -36,6 +36,9 @@ export enum PCloudResultCode {
   // Sharing errors
   SHARE_NOT_FOUND = 2007,
   SHARE_PERMISSION_DENIED = 2008,
+
+  // Observed in practice (absent from public docs): path-based lookup on a non-existent item
+  FILE_OR_FOLDER_NOT_FOUND = 2055,
 }
 
 export const PCLOUD_ERROR_MESSAGES: Record<PCloudResultCode, string> = {
@@ -52,4 +55,5 @@ export const PCLOUD_ERROR_MESSAGES: Record<PCloudResultCode, string> = {
   [PCloudResultCode.STORAGE_QUOTA_EXCEEDED]: 'Storage quota exceeded',
   [PCloudResultCode.SHARE_NOT_FOUND]: 'Share not found',
   [PCloudResultCode.SHARE_PERMISSION_DENIED]: 'Share permission denied',
+  [PCloudResultCode.FILE_OR_FOLDER_NOT_FOUND]: 'File or folder not found.',
 } as const

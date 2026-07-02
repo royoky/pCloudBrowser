@@ -5,6 +5,7 @@ trustPolicyExclude:
   - chokidar@4.0.3
   - semver@6.3.1
   - tinyexec@1.2.2
+  - tinyclip@0.1.13
 
 overrides:
   unimport: 5.6.0
@@ -13,3 +14,4 @@ allowBuilds:
   '@parcel/watcher': true
   esbuild: true
   unrs-resolver: true
+  vue-demi: true

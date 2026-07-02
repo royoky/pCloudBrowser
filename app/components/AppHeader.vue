@@ -1,27 +1,28 @@
 <script setup lang="ts">
-const theme = useTheme()
-
-function toggleTheme() {
-  theme.global.name.value = theme.global.current.value.dark ? 'light' : 'dark'
-}
-
-const rail = useState<boolean>('rail')
-
-const toggleDrawer = useToggle(rail)
+const { loggedIn } = usePCloudAccount()
 </script>
 
 <template>
-  <VAppBar name="App Bar">
-    <template #prepend>
-      <VAppBarNavIcon @click="toggleDrawer()" />
+  <UHeader>
+    <template #title>
+      PCloudBrowser
     </template>
-    <VAppBarTitle>
-      <div href="/">
-        pCloud Browser
-      </div>
-    </VAppBarTitle>
-    <VBtn icon @click="toggleTheme">
-      <VIcon>mdi-theme-light-dark</VIcon>
-    </VBtn>
-  </VAppBar>
+
+    <template #right>
+      <AppUserMenu v-if="loggedIn" />
+
+      <UColorModeButton />
+
+      <UTooltip text="Open on GitHub" :kbds="['meta', 'G']">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          to="https://github.com/royoky/pCloudBrowser"
+          target="_blank"
+          icon="i-simple-icons-github"
+          aria-label="GitHub"
+        />
+      </UTooltip>
+    </template>
+  </UHeader>
 </template>
