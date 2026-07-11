@@ -234,13 +234,49 @@ export const contentHandler = defineEventHandler(async (event): Promise<ContentD
   }
 })
 
-/** GET /api/{provider}/download?path=… -> 302 redirect to the signed URL */
+/**
+ * GET /api/{provider}/download?path=…
+ *
+ * Proxies the file server-side rather than 302-redirecting to the signed
+ * pCloud CDN URL. pCloud binds `getfilelink` URLs to the IP that requested
+ * them — here, the server's egress IP, not the end user's browser IP — so a
+ * bare redirect makes the browser hit the CDN directly and pCloud rejects it
+ * with "This link was generated for another IP address." Fetching server-side
+ * keeps the request on the IP the link was actually issued for.
+ */
 export const downloadHandler = defineEventHandler(async (event) => {
   const repository = resolveRepository(event)
   const { path } = await getValidatedQuery(event, requiredPathSchema.parse)
 
   try {
-    return await sendRedirect(event, await repository.getDownloadUrl(path), 302)
+    const [url, item] = await Promise.all([
+      repository.getDownloadUrl(path),
+      repository.getByPath(path),
+    ])
+
+    const upstream = await fetch(url)
+    if (!upstream.ok) {
+      throw createError({
+        statusCode: 502,
+        statusMessage: 'BAD_GATEWAY',
+        message: 'Failed to fetch file from upstream',
+      })
+    }
+
+    const filename = item?.name ?? path.split('/').pop() ?? 'download'
+    const asciiFallback = filename.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '')
+    setHeader(
+      event,
+      'content-disposition',
+      `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+    )
+    const contentType = upstream.headers.get('content-type') ?? 'application/octet-stream'
+    setHeader(event, 'content-type', contentType)
+    const contentLength = upstream.headers.get('content-length')
+    if (contentLength)
+      setHeader(event, 'content-length', Number(contentLength))
+
+    return sendWebResponse(event, upstream)
   }
   catch (error) {
     throw toHttpError(error)
