@@ -1,0 +1,11 @@
+{
+  "name": "pcloud-browser",
+  "main": ".output/server/index.mjs",
+  "compatibility_date": "2026-07-11",
+  "compatibility_flags": ["nodejs_compat"],
+  "keep_vars": true,
+  "assets": {
+    "directory": ".output/public",
+    "binding": "ASSETS"
+  }
+}
