@@ -11,7 +11,7 @@ The codebase enforces **TypeScript best practices** including strict type bounda
 - **VueFinder 4** (file-manager UI), **Uppy 5** (upload client)
 - **hls.js** (video streaming playback)
 - **nuxt-auth-utils** (session, pCloud OAuth2)
-- **@nuxthub/core** (deployment)
+- **Cloudflare Workers** (deployment, via Nitro's `cloudflare_workers` preset)
 - **Zod** (request validation), **Luxon** (dates)
 - **TypeScript**, **ESLint** (antfu config)
 

@@ -3,9 +3,10 @@ const { loggedIn } = usePCloudAccount()
 </script>
 
 <template>
-  <UHeader>
+  <UHeader title="PCloudBrowser">
     <template #title>
-      PCloudBrowser
+      <img src="/logo.png" alt="" class="h-7 w-auto">
+      <span>PCloudBrowser</span>
     </template>
 
     <template #right>
