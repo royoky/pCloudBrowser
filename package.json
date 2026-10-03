@@ -1,10 +1,17 @@
 {
   "type": "module",
   "private": true,
-  "packageManager": "pnpm@11.11.0",
-  "engines": {
-    "node": ">=24.0.0",
-    "pnpm": ">=11.0.0"
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": ">=12.4.0 <13.0.0",
+      "onFail": "download"
+    },
+    "runtime": {
+      "name": "node",
+      "version": "^24.4.0",
+      "onFail": "download"
+    }
   },
   "scripts": {
     "build": "nuxt build",
@@ -16,28 +23,26 @@
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
-    "@iconify-json/lucide": "^1.2.116",
-    "@nuxt/ui": "^4.9.0",
-    "@uppy/core": "^5.2.0",
-    "@uppy/xhr-upload": "^5.2.0",
-    "hls.js": "^1.6.16",
-    "luxon": "^3.7.2",
-    "nuxt": "^4.4.8",
-    "nuxt-auth-utils": "0.5.29",
-    "pretty-bytes": "^7.1.0",
-    "tailwindcss": "^4.3.2",
+    "@iconify-json/lucide": "^1.2.138",
+    "@nuxt/ui": "^4.11.3",
+    "@uppy/core": "^6.2.0",
+    "@uppy/xhr-upload": "^6.0.1",
+    "hls.js": "^1.7.3",
+    "nuxt": "^4.5.2",
+    "nuxt-auth-utils": "0.5.30",
+    "pretty-bytes": "^7.2.0",
+    "tailwindcss": "^4.3.3",
     "vue": "latest",
-    "vuefinder": "^4.6.0",
-    "zod": "^4.4.3"
+    "vuefinder": "^4.7.6",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^9.1.0",
-    "@nuxt/eslint": "^1.16.0",
+    "@antfu/eslint-config": "^9.5.1",
+    "@nuxt/eslint": "^1.17.0",
     "@types/busboy": "^1.5.4",
-    "@types/luxon": "^3.7.2",
-    "@vueuse/nuxt": "^14.3.0",
-    "eslint": "^10.6.0",
+    "@vueuse/nuxt": "^15.0.0",
+    "eslint": "^10.11.0",
     "typescript": "^6.0.3",
-    "vue-tsc": "^3.3.7"
+    "vue-tsc": "^3.3.12"
   }
 }
