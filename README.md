@@ -12,7 +12,7 @@ The codebase enforces **TypeScript best practices** including strict type bounda
 - **hls.js** (video streaming playback)
 - **nuxt-auth-utils** (session, pCloud OAuth2)
 - **Cloudflare Workers** (deployment, via Nitro's `cloudflare_workers` preset)
-- **Zod** (request validation), **Luxon** (dates)
+- **Zod** (request validation)
 - **TypeScript**, **ESLint** (antfu config)
 
 ## Architecture

@@ -1,4 +1,4 @@
-shellEmulator: true
+minimumReleaseAgeExcludePrune: true
 
 trustPolicy: no-downgrade
 trustPolicyExclude:
@@ -6,6 +6,8 @@ trustPolicyExclude:
   - semver@6.3.1
   - tinyexec@1.2.2
   - tinyclip@0.1.13
+
+shellEmulator: true
 
 overrides:
   unimport: 5.6.0
