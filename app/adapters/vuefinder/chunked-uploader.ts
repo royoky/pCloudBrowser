@@ -16,6 +16,45 @@ import { BasePlugin } from '@uppy/core'
 
 const DEFAULT_CHUNK_SIZE = 20 * 1024 * 1024 // 20 MB — safely under the platform body limit
 
+// HTTP status codes: bounds of the 2xx success range.
+const HTTP_STATUS_OK = 200
+const HTTP_STATUS_MULTIPLE_CHOICES = 300
+
+/** Server error message from a JSON error body, else a generic one with the status. */
+function errorMessage(xhr: XMLHttpRequest): string {
+  const fallback = `Upload failed (${xhr.status})`
+  try {
+    return JSON.parse(xhr.responseText).message ?? fallback
+  }
+  catch {
+    // Not a JSON body (e.g. a proxy or platform error page): the status is all we have.
+    return fallback
+  }
+}
+
+/**
+ * PUT a chunk with byte-level progress. `fetch`/`$fetch` expose no upload
+ * progress, so this uses XHR: without it the UI stays at 0% until a whole
+ * chunk (up to 20 MB) has been sent, i.e. for the entire upload of most files.
+ */
+function putChunk(url: string, body: Blob, onProgress: (sent: number) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('PUT', url)
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable)
+        onProgress(event.loaded)
+    }
+    xhr.onload = () => {
+      if (xhr.status >= HTTP_STATUS_OK && xhr.status < HTTP_STATUS_MULTIPLE_CHOICES)
+        return resolve()
+      reject(new Error(errorMessage(xhr)))
+    }
+    xhr.onerror = () => reject(new Error('Network error during upload'))
+    xhr.send(body)
+  })
+}
+
 export interface ChunkedUploaderOpts extends PluginOpts {
   /** Provider API base, e.g. `/api/pcloud`. */
   base: string
@@ -59,16 +98,17 @@ export class ChunkedUploader<M extends Meta, B extends Body> extends BasePlugin<
 
       for (let offset = 0; offset < total; offset += this.chunkSize) {
         const chunk = blob.slice(offset, Math.min(offset + this.chunkSize, total))
-        await $fetch(`${base}/upload/write`, {
-          method: 'PUT',
-          query: { uploadId, offset },
-          body: await chunk.arrayBuffer(),
-        })
-
-        this.uppy.emit('upload-progress', this.uppy.getFile(fileId), {
-          uploadStarted,
-          bytesUploaded: Math.min(offset + this.chunkSize, total),
-          bytesTotal: total,
+        const query = new URLSearchParams({ uploadId, offset: String(offset) })
+        // Sequential on purpose: one in-flight chunk bounds memory and keeps
+        // progress monotonic.
+        await putChunk(`${base}/upload/write?${query}`, chunk, (sent) => { // NOSONAR
+          // Capped below `total` so the UI doesn't read 100% while the server
+          // is still forwarding the last chunk and finalizing the file.
+          this.uppy.emit('upload-progress', this.uppy.getFile(fileId), {
+            uploadStarted,
+            bytesUploaded: Math.min(offset + sent, total - 1),
+            bytesTotal: total,
+          })
         })
       }
 
@@ -78,7 +118,7 @@ export class ChunkedUploader<M extends Meta, B extends Body> extends BasePlugin<
       })
 
       this.uppy.emit('upload-success', this.uppy.getFile(fileId), {
-        status: 200,
+        status: HTTP_STATUS_OK,
         body: item as B,
         uploadURL: undefined,
       })
@@ -93,6 +133,11 @@ export class ChunkedUploader<M extends Meta, B extends Body> extends BasePlugin<
   private readonly handleUpload = async (fileIDs: string[]): Promise<void> => {
     if (!fileIDs.length)
       return
+    // Uppy core never emits `upload-start`: the uploader plugin must (as
+    // @uppy/xhr-upload does). VueFinder's queue only switches a file from
+    // "Pending upload" to "Uploading x%" on this event, so without it the
+    // modal shows no progress at all.
+    this.uppy.emit('upload-start', this.uppy.getFilesByIds(fileIDs))
     await Promise.allSettled(fileIDs.map(this.uploadOne))
   }
 
