@@ -424,10 +424,16 @@ export const previewHandler = defineEventHandler(async (event) => {
     // Chrome's ORB blocks the cross-origin opaque response.
     const upstream = await fetch(url)
     if (!upstream.ok) {
+      // Log only the status and a coarse reason (never the body, which could
+      // echo identifiers): pCloud links are bound to the requesting IP, and
+      // Workers don't guarantee a stable egress IP between subrequests.
+      const body = await upstream.text().catch(() => '')
+      const reason = /another IP/i.test(body) ? 'ip-mismatch' : 'other'
+      console.warn(`[preview] upstream ${upstream.status} (${reason})`)
       throw createError({
         statusCode: 502,
         statusMessage: 'BAD_GATEWAY',
-        message: 'Upstream preview unavailable',
+        message: `Upstream preview unavailable (${upstream.status})`,
       })
     }
     setHeader(event, 'content-type', upstream.headers.get('content-type') ?? 'image/jpeg')
