@@ -387,6 +387,8 @@ async function proxyM3u8(event: H3Event, m3u8Url: string): Promise<void> {
   return send(event, rewritten)
 }
 
+const MAX_ERROR_BODY_BYTES = 1024
+
 const previewQuerySchema = z.object({
   path: z.string().min(1),
   // ?thumb=1 — return a scaled thumbnail instead of the full image.
@@ -427,7 +429,13 @@ export const previewHandler = defineEventHandler(async (event) => {
       // Log only the status and a coarse reason (never the body, which could
       // echo identifiers): pCloud links are bound to the requesting IP, and
       // Workers don't guarantee a stable egress IP between subrequests.
-      const body = await upstream.text().catch(() => '')
+      // Only read small, declared-length bodies; never buffer an unbounded one.
+      const declaredLength = Number(upstream.headers.get('content-length') ?? Infinity)
+      const body = declaredLength <= MAX_ERROR_BODY_BYTES
+        ? await upstream.text().catch(() => '')
+        : ''
+      if (!body)
+        await upstream.body?.cancel()
       const reason = /another IP/i.test(body) ? 'ip-mismatch' : 'other'
       console.warn(`[preview] upstream ${upstream.status} (${reason})`)
       throw createError({
