@@ -388,6 +388,36 @@ async function proxyM3u8(event: H3Event, m3u8Url: string): Promise<void> {
 }
 
 const MAX_ERROR_BODY_BYTES = 1024
+const PREVIEW_MAX_ATTEMPTS = 3
+
+/** Reads at most `maxBytes` of a response body as text, then cancels the rest. */
+async function readBoundedText(response: Response, maxBytes: number): Promise<string> {
+  const reader = response.body?.getReader()
+  if (!reader)
+    return ''
+  const chunks: Uint8Array[] = []
+  let received = 0
+  try {
+    while (received < maxBytes) {
+      const { done, value } = await reader.read()
+      if (done)
+        break
+      chunks.push(value)
+      received += value.byteLength
+    }
+  }
+  catch {}
+  finally {
+    await reader.cancel().catch(() => {})
+  }
+  const merged = new Uint8Array(received)
+  let offset = 0
+  for (const chunk of chunks) {
+    merged.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return new TextDecoder().decode(merged.subarray(0, maxBytes))
+}
 
 const previewQuerySchema = z.object({
   path: z.string().min(1),
@@ -413,36 +443,60 @@ export const previewHandler = defineEventHandler(async (event) => {
       return proxyVideoStream(event, cdnUrl)
     }
 
-    const url = await repository.getPreviewUrl(path, thumb)
-    if (!url) {
-      throw createError({
-        statusCode: 415,
-        statusMessage: 'UNSUPPORTED',
-        message: 'No preview available for this file',
-      })
-    }
     // Proxy the image server-side: a 302 redirect would send the browser
     // directly to eth*.pcloud.com, where pCloud cookies are auto-sent and
     // Chrome's ORB blocks the cross-origin opaque response.
-    const upstream = await fetch(url)
-    if (!upstream.ok) {
-      // Log only the status and a coarse reason (never the body, which could
-      // echo identifiers): pCloud links are bound to the requesting IP, and
-      // Workers don't guarantee a stable egress IP between subrequests.
-      // Only read small, declared-length bodies; never buffer an unbounded one.
-      const declaredLength = Number(upstream.headers.get('content-length') ?? Infinity)
-      const body = declaredLength <= MAX_ERROR_BODY_BYTES
-        ? await upstream.text().catch(() => '')
-        : ''
-      if (!body)
-        await upstream.body?.cancel()
+    //
+    // pCloud links appear to be bound to the requesting IP, and Workers don't
+    // guarantee a stable egress IP between subrequests (the link request to
+    // the pCloud API and the CDN fetch below). On failure, ask for a fresh
+    // link and retry: a new pair of subrequests may well share an IP.
+    let upstream: Response | undefined
+    const failures: { status: number, reason: string, excerpt: string }[] = []
+    for (let attempt = 1; attempt <= PREVIEW_MAX_ATTEMPTS; attempt++) {
+      const url = await repository.getPreviewUrl(path, thumb)
+      if (!url) {
+        throw createError({
+          statusCode: 415,
+          statusMessage: 'UNSUPPORTED',
+          message: 'No preview available for this file',
+        })
+      }
+      upstream = await fetch(url)
+      if (upstream.ok)
+        break
+
+      // Classify the failure without ever logging the body, which could echo
+      // identifiers. The body is read in bounded fashion whether or not the
+      // upstream declares a content-length (chunked responses don't).
+      const body = await readBoundedText(upstream, MAX_ERROR_BODY_BYTES)
       const reason = /another IP/i.test(body) ? 'ip-mismatch' : 'other'
-      console.warn(`[preview] upstream ${upstream.status} (${reason})`)
+      // The excerpt only goes back to the (authenticated) caller in the 502
+      // below, never to the logs.
+      failures.push({
+        status: upstream.status,
+        reason,
+        excerpt: body.slice(0, 120).replace(/\s+/g, ' '),
+      })
+      console.warn(
+        `[preview] upstream ${upstream.status} (${reason}) `
+        + `attempt ${attempt}/${PREVIEW_MAX_ATTEMPTS}`,
+      )
+    }
+    if (!upstream?.ok) {
       throw createError({
         statusCode: 502,
         statusMessage: 'BAD_GATEWAY',
-        message: `Upstream preview unavailable (${upstream.status})`,
+        message: `Upstream preview unavailable (${
+          failures.map(f => `${f.status}:${f.reason}:${f.excerpt}`).join(', ')
+        })`,
       })
+    }
+    // Diagnostic visible in the browser's network tab when Workers logs are
+    // unavailable: failed attempts before this success, e.g. "403:ip-mismatch".
+    if (failures.length) {
+      // Status:reason only; the body excerpt stays out of success responses.
+      setHeader(event, 'x-preview-retries', failures.map(f => `${f.status}:${f.reason}`).join(','))
     }
     setHeader(event, 'content-type', upstream.headers.get('content-type') ?? 'image/jpeg')
     setHeader(event, 'cache-control', 'public, max-age=3600')

@@ -94,12 +94,6 @@ class PathIdCache {
  * - Maps pCloud responses to domain entities
  * - Handles path-to-ID conversions
  */
-// Module-level cache for thumbnail CDN URLs so list() and subsequent preview
-// requests (separate HTTP requests, separate repository instances) share state.
-// Key: pCloud fileid string. TTL mirrors pCloud signed URL lifetime.
-const thumbnailCdnCache = new Map<string, { url: string, expiresAt: number }>()
-const THUMBNAIL_TTL_MS = 4 * 60 * 1000
-
 export class PCloudFileRepository implements FileRepository {
   private readonly client: PCloudClient
   private readonly rootFolderId: string
@@ -280,13 +274,8 @@ export class PCloudFileRepository implements FileRepository {
     try {
       const thumbs = await this.client.getThumbsLinks(imageFileIds)
       const result = new Map<string, string>()
-      const expiresAt = Date.now() + THUMBNAIL_TTL_MS
-      for (const t of thumbs) {
-        const url = `https://${t.hosts![0]}${t.path}`
-        const id = t.fileid.toString()
-        result.set(id, url)
-        thumbnailCdnCache.set(id, { url, expiresAt })
-      }
+      for (const t of thumbs)
+        result.set(t.fileid.toString(), `https://${t.hosts![0]}${t.path}`)
       return result
     }
     catch {
@@ -676,10 +665,9 @@ export class PCloudFileRepository implements FileRepository {
     // the preview modal requests the full image (thumb=false, the default).
     // Thumbnails are only available for images; other types always get the full link.
     if (thumb && isImage) {
-      const cached = thumbnailCdnCache.get(item.id)
-      if (cached && cached.expiresAt > Date.now())
-        return cached.url
-
+      // Always request a fresh link: pCloud links can be bound to the IP that
+      // requested them, so one obtained in another request (e.g. list()) may be
+      // rejected when the Worker fetches it from a different egress IP.
       const response = await this.client.getThumbLink(item.id, '1024x768')
       return `https://${response.hosts[0]}${response.path}`
     }
