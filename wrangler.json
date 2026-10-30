@@ -12,16 +12,16 @@
   },
   "previews": {
     "observability": {
-      "enabled": false,
+      "enabled": true,
       "head_sampling_rate": 1,
       "issues": {
         "enabled": false
       },
       "logs": {
-        "enabled": false,
+        "enabled": true,
         "head_sampling_rate": 1,
         "invocation_logs": true,
-        "persist": false
+        "persist": true
       },
       "traces": {
         "enabled": false,
