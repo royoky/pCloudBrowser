@@ -87,8 +87,18 @@ export interface TransferOptions {
   destinationPath: string
   /** Optional new name for the item */
   newName?: string
-  /** Whether to overwrite if destination exists */
+  /**
+   * Replace an existing item of the same name at the destination. When false
+   * or omitted, nothing is replaced: the item gets a free name instead
+   * ("a.txt" -> "a (1).txt").
+   */
   overwrite?: boolean
+}
+
+/** A scaled image returned as content (see FileRepository.getThumbnail). */
+export interface ThumbnailContent {
+  body: ReadableStream<Uint8Array>
+  contentType: string
 }
 
 /**
@@ -261,7 +271,19 @@ export interface FileRepository {
    * @param path - Path to the file
    * @returns Promise resolving to the preview URL, or null if not previewable
    */
-  getPreviewUrl: (path: string, thumb?: boolean) => Promise<string | null>
+  getPreviewUrl: (path: string) => Promise<string | null>
+
+  /**
+   * Gets a scaled thumbnail of an image as a byte stream.
+   *
+   * Returned as content rather than a URL: provider links may be bound to the
+   * IP that requested them, which a stateless server can't guarantee when it
+   * fetches the link right after.
+   *
+   * @param path - Path to the file
+   * @returns Promise resolving to the thumbnail, or null if the file is not an image
+   */
+  getThumbnail: (path: string) => Promise<ThumbnailContent | null>
 
   /**
    * Gets a streaming URL for media files (e.g., an HLS m3u8 playlist).

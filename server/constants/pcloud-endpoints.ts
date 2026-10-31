@@ -45,8 +45,6 @@ export const PCLOUD_API_ENDPOINTS = {
   },
   THUMBNAILS: {
     GET: '/getthumb',
-    GET_LINK: '/getthumblink',
-    GET_LINKS: '/getthumbslinks',
   },
   STREAMING: {
     // Undocumented but used by pCloud's own app — returns HLS + original variants

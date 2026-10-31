@@ -29,12 +29,14 @@ import type {
   FolderEntity,
   ListOptions,
   SearchOptions,
+  ThumbnailContent,
   TransferOptions,
   WriteFileContentOptions,
 } from '~~/shared/domain/ports/file.repository'
 
 import { PCloudApiError, PCloudClient } from '~~/server/adapters/pcloud/client'
-import { getPCloudItemId, isPCloudFile } from '~~/server/models/pcloud-api'
+import { PCloudResultCode } from '~~/server/constants/pcloud-result-codes'
+import { getPCloudItemId } from '~~/server/models/pcloud-api'
 
 import { FileSystemPath, isFile, isFolder } from '~~/shared/domain/models/file-system.entity'
 
@@ -120,7 +122,6 @@ export class PCloudFileRepository implements FileRepository {
   private mapToFileEntity(
     pcloudItem: PCloudFileMetadata,
     parentPath: string,
-    thumbnailUrls: Map<string, string> = new Map(),
   ): FileEntity {
     const path = pcloudItem.path || FileSystemPath.join(parentPath, pcloudItem.name)
     const extension = pcloudItem.name.includes('.')
@@ -138,7 +139,7 @@ export class PCloudFileRepository implements FileRepository {
       size: pcloudItem.size,
       mimeType: pcloudItem.contenttype,
       extension,
-      hasThumbnail: thumbnailUrls.has(id),
+      hasThumbnail: pcloudItem.thumb === true,
     }
   }
 
@@ -171,12 +172,11 @@ export class PCloudFileRepository implements FileRepository {
   private mapToEntity(
     pcloudItem: PCloudItemMetadata,
     parentPath: string,
-    thumbnailUrls?: Map<string, string>,
   ): FileSystemItem {
     if (pcloudItem.isfolder) {
       return this.mapToFolderEntity(pcloudItem, parentPath, [])
     }
-    return this.mapToFileEntity(pcloudItem, parentPath, thumbnailUrls)
+    return this.mapToFileEntity(pcloudItem, parentPath)
   }
 
   /**
@@ -242,45 +242,11 @@ export class PCloudFileRepository implements FileRepository {
 
     this.pathIdCache.set(folderPath, pcloudFolder.folderid.toString())
 
-    // Batch-fetch thumbnail URLs for image files in one round-trip.
-    const thumbnailUrls = await this.fetchThumbnailUrls(pcloudFolder.contents ?? [])
-
     const children = (pcloudFolder.contents ?? []).map(item =>
-      this.mapToEntity(item, folderPath, thumbnailUrls),
+      this.mapToEntity(item, folderPath),
     )
 
     return this.mapToFolderEntity(pcloudFolder, FileSystemPath.getParent(folderPath), children)
-  }
-
-  /**
-   * Calls getthumbslinks for all image files with a pCloud thumbnail,
-   * returning a fileid → CDN URL map. Non-fatal: returns empty map on error.
-   */
-  private async fetchThumbnailUrls(
-    items: PCloudItemMetadata[],
-  ): Promise<Map<string, string>> {
-    // Include images and videos regardless of thumbready: false just means the
-    // thumbnail hasn't been pre-cached, not that it can't be generated.
-    const imageFileIds = items
-      .filter(isPCloudFile)
-      .filter(item =>
-        item.contenttype.startsWith('image/') || item.contenttype.startsWith('video/'),
-      )
-      .map(item => item.fileid.toString())
-
-    if (!imageFileIds.length)
-      return new Map()
-
-    try {
-      const thumbs = await this.client.getThumbsLinks(imageFileIds)
-      const result = new Map<string, string>()
-      for (const t of thumbs)
-        result.set(t.fileid.toString(), `https://${t.hosts![0]}${t.path}`)
-      return result
-    }
-    catch {
-      return new Map()
-    }
   }
 
   async getById(id: string): Promise<FileSystemItem | null> {
@@ -456,6 +422,19 @@ export class PCloudFileRepository implements FileRepository {
     // Use the ID already fetched by getByPath, not pathToId which makes another API call
     const itemId = item.id
 
+    // pCloud replaces an existing target on rename; refuse instead of losing it.
+    const siblings = await this.client.listFolder(await this.pathToId(parentPath))
+    const clash = (siblings.metadata.contents ?? []).some(sibling =>
+      sibling.name.toLowerCase() === newName.toLowerCase() && getPCloudItemId(sibling) !== itemId,
+    )
+    if (clash) {
+      throw new PCloudApiError(
+        'An item with this name already exists',
+        409,
+        PCloudResultCode.ALREADY_EXISTS,
+      )
+    }
+
     if (isFile(item)) {
       const response = await this.client.renameFile(itemId, newName)
       const pcloudFile = response.metadata
@@ -465,6 +444,27 @@ export class PCloudFileRepository implements FileRepository {
       const response = await this.client.renameFolder(itemId, newName)
       const pcloudFolder = response.metadata
       return this.mapToFolderEntity(pcloudFolder, parentPath, [])
+    }
+  }
+
+  /**
+   * Returns `name` when the folder has no entry with that name, otherwise the
+   * first free "base (n).ext". Names are compared case-insensitively, to stay
+   * on the safe side whichever way pCloud treats case.
+   */
+  private async uniqueName(folderId: string, name: string, isFolder: boolean): Promise<string> {
+    const { metadata } = await this.client.listFolder(folderId)
+    const taken = new Set((metadata.contents ?? []).map(item => item.name.toLowerCase()))
+    if (!taken.has(name.toLowerCase()))
+      return name
+
+    const dot = isFolder ? -1 : name.lastIndexOf('.')
+    const base = dot > 0 ? name.slice(0, dot) : name
+    const extension = dot > 0 ? name.slice(dot) : ''
+    for (let n = 1; ; n++) {
+      const candidate = `${base} (${n})${extension}`
+      if (!taken.has(candidate.toLowerCase()))
+        return candidate
     }
   }
 
@@ -486,19 +486,27 @@ export class PCloudFileRepository implements FileRepository {
       const sourceId = sourceItem.id
       const destinationId = await this.pathToId(options.destinationPath)
 
+      // pCloud replaces (or, for folders, merges into) an existing target, so
+      // unless asked to overwrite, copy under a free name: "a.txt" -> "a (1).txt".
+      const name = options.newName ?? sourceItem.name
+      const targetName = options.overwrite
+        ? name
+        : await this.uniqueName(destinationId, name, isFolder(sourceItem))
+
       if (isFile(sourceItem)) {
-        await this.client.copyFile(
-          sourceId,
-          destinationId,
-          options.newName,
-        )
+        // noover also guards against a same-name copy racing in the same batch.
+        await this.client.copyFile(sourceId, destinationId, targetName, !options.overwrite)
+      }
+      else if (targetName === sourceItem.name) {
+        await this.client.copyFolder(sourceId, destinationId)
       }
       else {
-        await this.client.copyFolder(
-          sourceId,
-          destinationId,
-          options.newName,
-        )
+        // copyfolder can't rename: copy the content into a new, freely named folder.
+        const created = await this.client.createFolder({
+          parentId: destinationId,
+          name: targetName,
+        })
+        await this.client.copyFolder(sourceId, created.metadata.folderid, true)
       }
 
       return {
@@ -532,20 +540,21 @@ export class PCloudFileRepository implements FileRepository {
       const sourceId = sourceItem.id
       const destinationId = await this.pathToId(options.destinationPath)
 
-      if (isFile(sourceItem)) {
-        await this.client.moveFile(
-          sourceId,
-          destinationId,
-          options.newName,
-        )
-      }
-      else {
-        await this.client.moveFolder(
-          sourceId,
-          destinationId,
-          options.newName,
-        )
-      }
+      // Moving an item into the folder it is already in changes nothing.
+      const destinationPath = options.destinationPath.replace(/\/+$/, '') || '/'
+      if (!options.newName && FileSystemPath.getParent(sourceItem.path) === destinationPath)
+        return { success: true, item: sourceItem }
+
+      // Same as copy: pCloud replaces an existing target, so pick a free name.
+      const name = options.newName ?? sourceItem.name
+      const targetName = options.overwrite
+        ? name
+        : await this.uniqueName(destinationId, name, isFolder(sourceItem))
+
+      if (isFile(sourceItem))
+        await this.client.moveFile(sourceId, destinationId, targetName)
+      else
+        await this.client.moveFolder(sourceId, destinationId, targetName)
 
       // Clear cache since paths have changed
       this.pathIdCache.clear()
@@ -646,13 +655,12 @@ export class PCloudFileRepository implements FileRepository {
     return `https://${response.hosts[0]}${response.path}`
   }
 
-  async getPreviewUrl(path: string, thumb: boolean = false): Promise<string | null> {
+  async getPreviewUrl(path: string): Promise<string | null> {
     const item = await this.getByPath(path)
     if (!item || !isFile(item))
       return null
 
-    const isImage = item.mimeType.startsWith('image/')
-    const isPreviewable = isImage
+    const isPreviewable = item.mimeType.startsWith('image/')
       || item.mimeType.startsWith('video/')
       || item.mimeType.startsWith('audio/')
       || item.mimeType.startsWith('text/')
@@ -661,19 +669,23 @@ export class PCloudFileRepository implements FileRepository {
     if (!isPreviewable)
       return null
 
-    // Grid view requests a scaled thumbnail (thumb=true) for fast rendering;
-    // the preview modal requests the full image (thumb=false, the default).
-    // Thumbnails are only available for images; other types always get the full link.
-    if (thumb && isImage) {
-      // Always request a fresh link: pCloud links can be bound to the IP that
-      // requested them, so one obtained in another request (e.g. list()) may be
-      // rejected when the Worker fetches it from a different egress IP.
-      const response = await this.client.getThumbLink(item.id, '1024x768')
-      return `https://${response.hosts[0]}${response.path}`
-    }
-
     const response = await this.client.getFileLink(item.id)
     return `https://${response.hosts[0]}${response.path}`
+  }
+
+  async getThumbnail(path: string): Promise<ThumbnailContent | null> {
+    const item = await this.getByPath(path)
+    if (!item || !isFile(item) || !item.mimeType.startsWith('image/'))
+      return null
+
+    const response = await this.client.getThumb(item.id)
+    if (!response.body)
+      throw new Error('pCloud getthumb returned an empty body')
+
+    return {
+      body: response.body,
+      contentType: response.headers.get('content-type') ?? 'image/jpeg',
+    }
   }
 
   async getStreamUrl(path: string): Promise<string | null> {

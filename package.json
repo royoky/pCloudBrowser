@@ -33,7 +33,7 @@
     "pretty-bytes": "^7.2.0",
     "tailwindcss": "^4.3.3",
     "vue": "latest",
-    "vuefinder": "^4.7.6",
+    "vuefinder": "^4.8.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {

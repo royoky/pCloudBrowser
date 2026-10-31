@@ -38,7 +38,7 @@ export interface PCloudBaseMetadata {
   ismine: boolean
   isshared: boolean
   isdeleted: boolean
-  thumbready?: boolean
+  thumb?: boolean // true if thumbs can be created from the object
   path: string
 }
 
@@ -179,30 +179,6 @@ export interface PCloudFileLinkResponse extends PCloudBaseResponse {
 
 export interface PCloudRenameFileResponse extends PCloudBaseResponse {
   metadata: PCloudFileMetadata
-}
-
-/** Response from getthumblink */
-export interface PCloudThumbLinkResponse extends PCloudBaseResponse {
-  size: string
-  path: string
-  expires: string
-  hosts: string[]
-}
-
-/** Single entry in getthumbslinks response */
-export interface PCloudThumbEntry {
-  fileid: number
-  result: number
-  path?: string
-  hosts?: string[]
-  expires?: string
-  size?: string
-  error?: string
-}
-
-/** Response from getthumbslinks */
-export interface PCloudThumbsLinksResponse extends PCloudBaseResponse {
-  thumbs: PCloudThumbEntry[]
 }
 
 /** One variant returned by getmediatranscodelink */
