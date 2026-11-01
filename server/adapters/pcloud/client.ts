@@ -346,11 +346,16 @@ export class PCloudClient {
     )
   }
 
-  async getFileLink(fileId: string | number): Promise<PCloudFileLinkResponse> {
+  /** With `forceDownload`, the CDN serves the file as an attachment instead of inline. */
+  async getFileLink(
+    fileId: string | number,
+    forceDownload: boolean = false,
+  ): Promise<PCloudFileLinkResponse> {
+    const params: Record<string, unknown> = { fileid: fileId }
+    if (forceDownload)
+      params.forcedownload = 1
     return this.handleResponse(
-      await this.call<PCloudFileLinkResponse>(PCLOUD_API_ENDPOINTS.FILES.DOWNLOAD, {
-        fileid: fileId,
-      }),
+      await this.call<PCloudFileLinkResponse>(PCLOUD_API_ENDPOINTS.FILES.DOWNLOAD, params),
     )
   }
 

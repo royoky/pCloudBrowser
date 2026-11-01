@@ -175,6 +175,11 @@ export interface PCloudFileLinkResponse extends PCloudBaseResponse {
   hosts: string[]
   path: string
   expires: string
+  /**
+   * Undocumented. Sent back to the CDN as `Cookie: dwltag=…`, it lets any IP
+   * use the link; without it the CDN only accepts the IP that requested it.
+   */
+  dwltag?: string
 }
 
 export interface PCloudRenameFileResponse extends PCloudBaseResponse {

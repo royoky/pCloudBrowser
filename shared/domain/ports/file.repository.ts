@@ -101,6 +101,13 @@ export interface ThumbnailContent {
   contentType: string
 }
 
+/** Where to fetch a file's content from the server, with what the provider requires. */
+export interface ContentLink {
+  url: string
+  /** Headers to send along when fetching `url`. */
+  headers?: Record<string, string>
+}
+
 /**
  * Result of a file operation
  */
@@ -258,20 +265,23 @@ export interface FileRepository {
   search: (options: SearchOptions) => Promise<FileSystemItem[]>
 
   /**
-   * Gets the download URL for a file
+   * Gets a link to download the file from, served as an attachment.
+   *
+   * Providers may bind the link to the requester's IP: fetch it with the
+   * returned headers, which carry what lets a different IP use it.
    *
    * @param path - Path to the file
-   * @returns Promise resolving to the download URL
+   * @returns Promise resolving to the download link
    */
-  getDownloadUrl: (path: string) => Promise<string>
+  getDownloadLink: (path: string) => Promise<ContentLink>
 
   /**
-   * Gets the preview URL for a file (if previewable)
+   * Gets a link to the full content of a file (if previewable), see getDownloadLink
    *
    * @param path - Path to the file
-   * @returns Promise resolving to the preview URL, or null if not previewable
+   * @returns Promise resolving to the link, or null if not previewable
    */
-  getPreviewUrl: (path: string) => Promise<string | null>
+  getPreviewLink: (path: string) => Promise<ContentLink | null>
 
   /**
    * Gets a scaled thumbnail of an image as a byte stream.

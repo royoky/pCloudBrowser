@@ -13,6 +13,7 @@
  */
 
 import type {
+  PCloudFileLinkResponse,
   PCloudFileMetadata,
   PCloudFolderContents,
   PCloudFolderMetadata,
@@ -20,6 +21,7 @@ import type {
 } from '~~/server/models/pcloud-api'
 
 import type {
+  ContentLink,
   CreateFileOptions,
   CreateFolderOptions,
   FileEntity,
@@ -37,6 +39,7 @@ import type {
 import { PCloudApiError, PCloudClient } from '~~/server/adapters/pcloud/client'
 import { PCloudResultCode } from '~~/server/constants/pcloud-result-codes'
 import { getPCloudItemId } from '~~/server/models/pcloud-api'
+import { isPCloudCdnUrl } from '~~/server/utils/hls'
 
 import { FileSystemPath, isFile, isFolder } from '~~/shared/domain/models/file-system.entity'
 
@@ -645,17 +648,29 @@ export class PCloudFileRepository implements FileRepository {
     return FileSystemPath.getParent(itemPath) === scope
   }
 
-  async getDownloadUrl(path: string): Promise<string> {
+  /**
+   * pCloud binds a file link to the IP that requested it, and the browser or a
+   * Worker rarely fetches it from that same IP. The CDN also accepts the
+   * `dwltag` from the link response, sent back as a cookie, whatever the IP.
+   * The cookie goes to pCloud's own CDN hosts only.
+   */
+  private toContentLink(response: PCloudFileLinkResponse): ContentLink {
+    const url = `https://${response.hosts[0]}${response.path}`
+    if (response.dwltag && isPCloudCdnUrl(url))
+      return { url, headers: { cookie: `dwltag=${response.dwltag}` } }
+    return { url }
+  }
+
+  async getDownloadLink(path: string): Promise<ContentLink> {
     const item = await this.getByPath(path)
     if (!item || !isFile(item))
       throw new Error(`File not found: ${path}`)
 
     // item.id is the pCloud fileid — no second /stat call needed.
-    const response = await this.client.getFileLink(item.id)
-    return `https://${response.hosts[0]}${response.path}`
+    return this.toContentLink(await this.client.getFileLink(item.id, true))
   }
 
-  async getPreviewUrl(path: string): Promise<string | null> {
+  async getPreviewLink(path: string): Promise<ContentLink | null> {
     const item = await this.getByPath(path)
     if (!item || !isFile(item))
       return null
@@ -669,8 +684,7 @@ export class PCloudFileRepository implements FileRepository {
     if (!isPreviewable)
       return null
 
-    const response = await this.client.getFileLink(item.id)
-    return `https://${response.hosts[0]}${response.path}`
+    return this.toContentLink(await this.client.getFileLink(item.id))
   }
 
   async getThumbnail(path: string): Promise<ThumbnailContent | null> {
@@ -702,10 +716,10 @@ export class PCloudFileRepository implements FileRepository {
   }
 
   async getContent(path: string): Promise<string> {
-    const url = await this.getDownloadUrl(path)
+    const link = await this.getDownloadLink(path)
 
     // Fetch the content and return as text
-    const response = await fetch(url)
+    const response = await fetch(link.url, { headers: link.headers })
 
     if (!response.ok) {
       throw new Error(`Failed to fetch file content: ${response.statusText}`)
