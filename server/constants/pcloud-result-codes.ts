@@ -30,12 +30,15 @@ export enum PCloudResultCode {
   MAINTENANCE = 2004,
 
   // File operation specific errors
-  FILE_TOO_LARGE = 2005,
+  // Observed in practice: listfolder on a missing path or on a file answers 2005
+  // "Directory does not exist."; getthumb on a missing path answers 2009 "File not found."
+  DIRECTORY_NOT_FOUND = 2005,
   STORAGE_QUOTA_EXCEEDED = 2006,
 
   // Sharing errors
   SHARE_NOT_FOUND = 2007,
   SHARE_PERMISSION_DENIED = 2008,
+  FILE_NOT_FOUND = 2009,
 
   // Observed in practice (absent from public docs): path-based lookup on a non-existent item
   FILE_OR_FOLDER_NOT_FOUND = 2055,
@@ -51,9 +54,10 @@ export const PCLOUD_ERROR_MESSAGES: Record<PCloudResultCode, string> = {
   [PCloudResultCode.INVALID_PARAMS]: 'Invalid parameters',
   [PCloudResultCode.RATE_LIMIT]: 'Rate limit exceeded',
   [PCloudResultCode.MAINTENANCE]: 'Service under maintenance',
-  [PCloudResultCode.FILE_TOO_LARGE]: 'File too large',
+  [PCloudResultCode.DIRECTORY_NOT_FOUND]: 'Directory does not exist.',
   [PCloudResultCode.STORAGE_QUOTA_EXCEEDED]: 'Storage quota exceeded',
   [PCloudResultCode.SHARE_NOT_FOUND]: 'Share not found',
   [PCloudResultCode.SHARE_PERMISSION_DENIED]: 'Share permission denied',
+  [PCloudResultCode.FILE_NOT_FOUND]: 'File not found.',
   [PCloudResultCode.FILE_OR_FOLDER_NOT_FOUND]: 'File or folder not found.',
 } as const

@@ -99,6 +99,16 @@ class PathIdCache {
  * - Maps pCloud responses to domain entities
  * - Handles path-to-ID conversions
  */
+/**
+ * getthumb results meaning "no thumbnail for this path" rather than a failure:
+ * 1014 (can't thumbnail this file type) and the not-found codes.
+ */
+const NO_THUMBNAIL_RESULTS: ReadonlySet<number> = new Set([
+  1014,
+  PCloudResultCode.FILE_NOT_FOUND,
+  PCloudResultCode.FILE_OR_FOLDER_NOT_FOUND,
+])
+
 export class PCloudFileRepository implements FileRepository {
   private readonly client: PCloudClient
   private readonly rootFolderId: string
@@ -238,8 +248,8 @@ export class PCloudFileRepository implements FileRepository {
   // ========================================================================
 
   async list(path: string, _options?: ListOptions): Promise<FolderEntity> {
-    const folderId = await this.pathToId(path)
-    const response = await this.client.listFolder(folderId)
+    // listfolder takes the path itself: no need to resolve it to an id first.
+    const response = await this.client.listFolder(path === '/' ? this.rootFolderId : { path })
     const pcloudFolder = response.metadata
     const folderPath = pcloudFolder.path || path
 
@@ -688,11 +698,16 @@ export class PCloudFileRepository implements FileRepository {
   }
 
   async getThumbnail(path: string): Promise<ThumbnailContent | null> {
-    const item = await this.getByPath(path)
-    if (!item || !isFile(item) || !item.mimeType.startsWith('image/'))
-      return null
-
-    const response = await this.client.getThumb(item.id)
+    // getthumb takes the path itself: one API call per thumbnail, no stat first.
+    let response: Response
+    try {
+      response = await this.client.getThumb({ path })
+    }
+    catch (error) {
+      if (error instanceof PCloudApiError && NO_THUMBNAIL_RESULTS.has(error.pCloudResult))
+        return null
+      throw error
+    }
     if (!response.body)
       throw new Error('pCloud getthumb returned an empty body')
 

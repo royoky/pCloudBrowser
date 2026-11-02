@@ -1,3 +1,4 @@
+/** A pCloud item addressed by id or, since the API accepts both, by path. */
 /**
  * pCloud API Client
  *
@@ -38,6 +39,12 @@ import {
   isPCloudSuccess,
   PCloudResultCode,
 } from '~~/server/models/pcloud-api'
+
+type PCloudItemRef = string | number | { path: string }
+
+function refParams(ref: PCloudItemRef, idParam: 'fileid' | 'folderid'): Record<string, string> {
+  return typeof ref === 'object' ? { path: ref.path } : { [idParam]: String(ref) }
+}
 
 export interface CreateFolderParams {
   parentId: string | number
@@ -191,6 +198,8 @@ export class PCloudClient {
       case PCloudResultCode.NOT_FOUND:
       case PCloudResultCode.SHARE_NOT_FOUND:
       case PCloudResultCode.FILE_OR_FOLDER_NOT_FOUND:
+      case PCloudResultCode.DIRECTORY_NOT_FOUND:
+      case PCloudResultCode.FILE_NOT_FOUND:
         return 404
 
       // Access errors
@@ -201,7 +210,6 @@ export class PCloudClient {
         return 403
 
       // Quota errors
-      case PCloudResultCode.FILE_TOO_LARGE:
       case PCloudResultCode.STORAGE_QUOTA_EXCEEDED:
         return 402
 
@@ -227,10 +235,10 @@ export class PCloudClient {
    * recursive mode nested items carry no `path`, only `name` + `parentfolderid`.
    */
   async listFolder(
-    folderId: string | number,
+    folder: PCloudItemRef,
     recursive: boolean = false,
   ): Promise<PCloudListFolderResponse> {
-    const params: Record<string, unknown> = { folderid: folderId }
+    const params: Record<string, unknown> = refParams(folder, 'folderid')
     if (recursive)
       params.recursive = 1
     return this.handleResponse(
@@ -426,9 +434,9 @@ export class PCloudClient {
    * it works from Workers whose egress IP changes between subrequests.
    * pCloud reports errors as a JSON body instead of an image.
    */
-  async getThumb(fileId: string | number, size: string = '1024x768'): Promise<Response> {
+  async getThumb(file: PCloudItemRef, size: string = '1024x768'): Promise<Response> {
     const endpoint = PCLOUD_API_ENDPOINTS.THUMBNAILS.GET
-    const params = new URLSearchParams({ fileid: fileId.toString(), size })
+    const params = new URLSearchParams({ ...refParams(file, 'fileid'), size })
     const start = Date.now()
     const response = await fetch(`${this.baseUrl}${endpoint}?${params}`, {
       headers: { Authorization: `Bearer ${this.accessToken}` },
