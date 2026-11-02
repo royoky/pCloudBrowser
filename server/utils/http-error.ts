@@ -5,6 +5,7 @@
  * for the neutral API. Already-built H3 errors are passed through unchanged.
  */
 
+import { isError } from 'h3'
 import { PCloudApiError } from '~~/server/adapters/pcloud'
 
 function codeForStatus(status: number): string {
@@ -21,7 +22,10 @@ function codeForStatus(status: number): string {
 
 export function toHttpError(error: unknown) {
   // Pass through errors already shaped by createError().
-  if (error && typeof error === 'object' && '__h3_error__' in error) {
+  // `isError` is the supported check: the `__h3_error__` marker is a static on
+  // the class, so `'__h3_error__' in error` is false for instances and every
+  // createError() used to be downgraded to a 500 PROVIDER_ERROR.
+  if (isError(error)) {
     return error
   }
 

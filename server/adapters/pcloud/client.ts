@@ -1,3 +1,4 @@
+/** A pCloud item addressed by id or, since the API accepts both, by path. */
 /**
  * pCloud API Client
  *
@@ -25,8 +26,6 @@ import type {
   PCloudMediaTranscodeLinkResponse,
   PCloudRenameFileResponse,
   PCloudRenameFolderResponse,
-  PCloudThumbLinkResponse,
-  PCloudThumbsLinksResponse,
   PCloudUploadCreateResponse,
   PCloudUploadResponse,
   PCloudUploadSaveResponse,
@@ -40,6 +39,12 @@ import {
   isPCloudSuccess,
   PCloudResultCode,
 } from '~~/server/models/pcloud-api'
+
+type PCloudItemRef = string | number | { path: string }
+
+function refParams(ref: PCloudItemRef, idParam: 'fileid' | 'folderid'): Record<string, string> {
+  return typeof ref === 'object' ? { path: ref.path } : { [idParam]: String(ref) }
+}
 
 export interface CreateFolderParams {
   parentId: string | number
@@ -193,6 +198,8 @@ export class PCloudClient {
       case PCloudResultCode.NOT_FOUND:
       case PCloudResultCode.SHARE_NOT_FOUND:
       case PCloudResultCode.FILE_OR_FOLDER_NOT_FOUND:
+      case PCloudResultCode.DIRECTORY_NOT_FOUND:
+      case PCloudResultCode.FILE_NOT_FOUND:
         return 404
 
       // Access errors
@@ -203,7 +210,6 @@ export class PCloudClient {
         return 403
 
       // Quota errors
-      case PCloudResultCode.FILE_TOO_LARGE:
       case PCloudResultCode.STORAGE_QUOTA_EXCEEDED:
         return 402
 
@@ -229,10 +235,10 @@ export class PCloudClient {
    * recursive mode nested items carry no `path`, only `name` + `parentfolderid`.
    */
   async listFolder(
-    folderId: string | number,
+    folder: PCloudItemRef,
     recursive: boolean = false,
   ): Promise<PCloudListFolderResponse> {
-    const params: Record<string, unknown> = { folderid: folderId }
+    const params: Record<string, unknown> = refParams(folder, 'folderid')
     if (recursive)
       params.recursive = 1
     return this.handleResponse(
@@ -283,27 +289,36 @@ export class PCloudClient {
     )
   }
 
+  /** With `noover`, pCloud refuses to replace an existing file of that name. */
   async copyFile(
     fileId: string | number,
     toFolderId: string | number,
     newName?: string,
+    noover: boolean = false,
   ): Promise<PCloudCopyFileResponse> {
     const params: Record<string, unknown> = { fileid: fileId, tofolderid: toFolderId }
     if (newName)
       params.toname = newName
+    if (noover)
+      params.noover = 1
     return this.handleResponse(
       await this.call<PCloudCopyFileResponse>(PCLOUD_API_ENDPOINTS.FILES.COPY_FILE, params),
     )
   }
 
+  /**
+   * copyfolder can't rename the copy (`toname` isn't a documented parameter),
+   * but with `contentOnly` it copies the folder's content straight into
+   * `toFolderId` instead of creating a folder of the same name there.
+   */
   async copyFolder(
     folderId: string | number,
     toFolderId: string | number,
-    newName?: string,
+    contentOnly: boolean = false,
   ): Promise<PCloudCopyFolderResponse> {
     const params: Record<string, unknown> = { folderid: folderId, tofolderid: toFolderId }
-    if (newName)
-      params.toname = newName
+    if (contentOnly)
+      params.copycontentonly = 1
     return this.handleResponse(
       await this.call<PCloudCopyFolderResponse>(PCLOUD_API_ENDPOINTS.FILES.COPY_FOLDER, params),
     )
@@ -339,11 +354,16 @@ export class PCloudClient {
     )
   }
 
-  async getFileLink(fileId: string | number): Promise<PCloudFileLinkResponse> {
+  /** With `forceDownload`, the CDN serves the file as an attachment instead of inline. */
+  async getFileLink(
+    fileId: string | number,
+    forceDownload: boolean = false,
+  ): Promise<PCloudFileLinkResponse> {
+    const params: Record<string, unknown> = { fileid: fileId }
+    if (forceDownload)
+      params.forcedownload = 1
     return this.handleResponse(
-      await this.call<PCloudFileLinkResponse>(PCLOUD_API_ENDPOINTS.FILES.DOWNLOAD, {
-        fileid: fileId,
-      }),
+      await this.call<PCloudFileLinkResponse>(PCLOUD_API_ENDPOINTS.FILES.DOWNLOAD, params),
     )
   }
 
@@ -408,34 +428,30 @@ export class PCloudClient {
     )
   }
 
-  /** Returns a CDN link for a file thumbnail (same shape as getFileLink). */
-  async getThumbLink(
-    fileId: string | number,
-    size: string = '256x256',
-  ): Promise<PCloudThumbLinkResponse> {
-    return this.handleResponse(
-      await this.call<PCloudThumbLinkResponse>(PCLOUD_API_ENDPOINTS.THUMBNAILS.GET_LINK, {
-        fileid: fileId,
-        size,
-      }),
-    )
-  }
-
   /**
-   * Batch-fetches CDN thumbnail links for multiple files in a single call.
-   * pCloud connects to multiple storage servers simultaneously, making this
-   * more efficient than sequential getThumbLink calls.
+   * Fetches a scaled thumbnail as raw image bytes straight from the API host.
+   * Unlike getthumblink, there is no CDN link bound to the requester's IP, so
+   * it works from Workers whose egress IP changes between subrequests.
+   * pCloud reports errors as a JSON body instead of an image.
    */
-  async getThumbsLinks(
-    fileIds: string[],
-    size: string = '256x256',
-  ): Promise<PCloudThumbsLinksResponse['thumbs']> {
-    const response = await this.call<PCloudThumbsLinksResponse>(
-      PCLOUD_API_ENDPOINTS.THUMBNAILS.GET_LINKS,
-      { fileids: fileIds.join(','), size },
-    )
-    await this.handleResponse(response)
-    return response.thumbs.filter(t => t.result === 0 && t.hosts?.length && t.path)
+  async getThumb(file: PCloudItemRef, size: string = '1024x768'): Promise<Response> {
+    const endpoint = PCLOUD_API_ENDPOINTS.THUMBNAILS.GET
+    const params = new URLSearchParams({ ...refParams(file, 'fileid'), size })
+    const start = Date.now()
+    const response = await fetch(`${this.baseUrl}${endpoint}?${params}`, {
+      headers: { Authorization: `Bearer ${this.accessToken}` },
+      signal: AbortSignal.timeout(this.timeout),
+    })
+    console.info(`[pCloud] ${endpoint} ${response.status} ${Date.now() - start}ms`)
+
+    const contentType = response.headers.get('content-type') ?? ''
+    if (response.ok && contentType.startsWith('image/'))
+      return response
+
+    const json = await response.json().catch(() => null)
+    // Throws PCloudApiError when the JSON carries a pCloud error code.
+    await this.handleResponse(json)
+    throw new Error(`pCloud getthumb unexpected response: ${response.status}`)
   }
 
   async getMetadata(path: string): Promise<PCloudListFolderResponse> {

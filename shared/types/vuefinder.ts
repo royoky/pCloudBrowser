@@ -60,6 +60,9 @@ export interface VueFinderDirEntry {
 
   /** Optional custom preview URL - if provided, overrides the adapter's getPreviewUrl() */
   previewUrl?: string
+
+  /** Optional grid thumbnail URL - if provided, the grid uses it instead of previewUrl */
+  thumbnailUrl?: string
 }
 
 /**

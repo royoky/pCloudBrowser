@@ -19,7 +19,7 @@ import type {
   SaveResultDto,
   SearchResultDto,
 } from '~~/shared/contracts/file-system.dto'
-import type { FileRepository } from '~~/shared/domain/ports/file.repository'
+import type { ContentLink, FileRepository } from '~~/shared/domain/ports/file.repository'
 
 import { z } from 'zod'
 import {
@@ -237,46 +237,50 @@ export const contentHandler = defineEventHandler(async (event): Promise<ContentD
 /**
  * GET /api/{provider}/download?path=…
  *
- * Proxies the file server-side rather than 302-redirecting to the signed
- * pCloud CDN URL. pCloud binds `getfilelink` URLs to the IP that requested
- * them — here, the server's egress IP, not the end user's browser IP — so a
- * bare redirect makes the browser hit the CDN directly and pCloud rejects it
- * with "This link was generated for another IP address." Fetching server-side
- * keeps the request on the IP the link was actually issued for.
+ * Proxies the file server-side rather than 302-redirecting the browser to the
+ * signed pCloud CDN URL, which would make the download depend on the browser
+ * still holding a pCloud session and allowing its cookies.
+ *
+ * pCloud binds the link to the IP that requested it, and a Worker's egress IP
+ * isn't stable, so the link comes with the headers (the `dwltag` cookie) that
+ * let the CDN accept another IP.
  */
 export const downloadHandler = defineEventHandler(async (event) => {
   const repository = resolveRepository(event)
   const { path } = await getValidatedQuery(event, requiredPathSchema.parse)
 
   try {
-    const [url, item] = await Promise.all([
-      repository.getDownloadUrl(path),
+    const [link, item] = await Promise.all([
+      repository.getDownloadLink(path),
       repository.getByPath(path),
     ])
 
-    const upstream = await fetch(url)
+    const upstream = await fetch(link.url, { headers: link.headers })
     if (!upstream.ok) {
+      // Status only: never log the body or the URL (file identifiers).
+      console.warn(`[download] upstream ${upstream.status}`)
+      await upstream.body?.cancel()
       throw createError({
         statusCode: 502,
         statusMessage: 'BAD_GATEWAY',
-        message: 'Failed to fetch file from upstream',
+        message: `Failed to fetch file from upstream (${upstream.status})`,
       })
     }
 
     const filename = item?.name ?? path.split('/').pop() ?? 'download'
     const asciiFallback = filename.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '')
-    setHeader(
-      event,
-      'content-disposition',
-      `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
-    )
-    const contentType = upstream.headers.get('content-type') ?? 'application/octet-stream'
-    setHeader(event, 'content-type', contentType)
+    // Our own headers only: sendWebResponse would copy the CDN's, including its
+    // Content-Disposition, which carries raw UTF-8 and no `filename*`.
+    const headers: Record<string, string> = {
+      'content-disposition':
+        `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+      'content-type': upstream.headers.get('content-type') ?? 'application/octet-stream',
+    }
     const contentLength = upstream.headers.get('content-length')
     if (contentLength)
-      setHeader(event, 'content-length', Number(contentLength))
+      headers['content-length'] = contentLength
 
-    return sendWebResponse(event, upstream)
+    return sendWebResponse(event, new Response(upstream.body, { headers }))
   }
   catch (error) {
     throw toHttpError(error)
@@ -285,7 +289,7 @@ export const downloadHandler = defineEventHandler(async (event) => {
 
 // Short-lived cache for signed pCloud CDN URLs so seeking a video doesn't
 // trigger a fresh /stat + /getfilelink pair on every range request.
-const videoUrlCache = new Map<string, { url: string, expiresAt: number }>()
+const videoLinkCache = new Map<string, { link: ContentLink, expiresAt: number }>()
 
 // .ts is MPEG-2 Transport Stream here, not TypeScript — pCloud stores media,
 // and the HLS/range proxy degrades gracefully if the file turns out to be text.
@@ -315,16 +319,16 @@ function isVideoPath(path: string): boolean {
   return VIDEO_EXTENSIONS.has(path.split('.').pop()?.toLowerCase() ?? '')
 }
 
-async function getCachedVideoUrl(event: H3Event, path: string): Promise<string> {
-  const cached = videoUrlCache.get(path)
+async function getCachedVideoLink(event: H3Event, path: string): Promise<ContentLink> {
+  const cached = videoLinkCache.get(path)
   if (cached && cached.expiresAt > Date.now())
-    return cached.url
+    return cached.link
 
   const repository = resolveRepository(event)
-  const url = await repository.getDownloadUrl(path)
+  const link = await repository.getDownloadLink(path)
   // Cache for 4 minutes (pCloud signed URLs typically expire after 5+)
-  videoUrlCache.set(path, { url, expiresAt: Date.now() + 4 * 60 * 1000 })
-  return url
+  videoLinkCache.set(path, { link, expiresAt: Date.now() + 4 * 60 * 1000 })
+  return link
 }
 
 /**
@@ -343,7 +347,7 @@ async function getCachedVideoUrl(event: H3Event, path: string): Promise<string> 
  * Uses sendWebResponse which accepts a native Response and streams the body
  * without buffering — memory cost is bounded by chunk size, not file size.
  */
-async function proxyVideoStream(event: H3Event, cdnUrl: string): Promise<void> {
+async function proxyVideoStream(event: H3Event, link: ContentLink): Promise<void> {
   let range = getHeader(event, 'range')
 
   // Cap open-ended initial probe to 64 KB so Chrome is forced to make
@@ -351,11 +355,11 @@ async function proxyVideoStream(event: H3Event, cdnUrl: string): Promise<void> {
   if (range === 'bytes=0-')
     range = 'bytes=0-65535'
 
-  const headers: Record<string, string> = {}
+  const headers: Record<string, string> = { ...link.headers }
   if (range)
     headers.range = range
 
-  const upstream = await fetch(cdnUrl, { headers })
+  const upstream = await fetch(link.url, { headers })
 
   if (!upstream.headers.has('accept-ranges'))
     upstream.headers.set('accept-ranges', 'bytes')
@@ -407,27 +411,50 @@ export const previewHandler = defineEventHandler(async (event) => {
       if (streamUrl)
         return proxyM3u8(event, streamUrl)
 
-      const cdnUrl = await getCachedVideoUrl(event, path)
-      return proxyVideoStream(event, cdnUrl)
+      const link = await getCachedVideoLink(event, path)
+      return proxyVideoStream(event, link)
     }
 
-    const url = await repository.getPreviewUrl(path, thumb)
-    if (!url) {
+    if (thumb) {
+      // Thumbnails come back as bytes from the API itself, not through a CDN
+      // link: pCloud links are bound to the IP that requested them, and
+      // Workers don't keep a stable egress IP between subrequests.
+      const thumbnail = await repository.getThumbnail(path)
+      if (!thumbnail) {
+        throw createError({
+          statusCode: 415,
+          statusMessage: 'UNSUPPORTED',
+          message: 'No thumbnail available for this file',
+        })
+      }
+      setHeader(event, 'cache-control', 'public, max-age=3600')
+      return sendWebResponse(event, new Response(thumbnail.body, {
+        headers: { 'content-type': thumbnail.contentType },
+      }))
+    }
+
+    const link = await repository.getPreviewLink(path)
+    if (!link) {
       throw createError({
         statusCode: 415,
         statusMessage: 'UNSUPPORTED',
         message: 'No preview available for this file',
       })
     }
-    // Proxy the image server-side: a 302 redirect would send the browser
+    // Proxy the file server-side: a 302 redirect would send the browser
     // directly to eth*.pcloud.com, where pCloud cookies are auto-sent and
-    // Chrome's ORB blocks the cross-origin opaque response.
-    const upstream = await fetch(url)
+    // Chrome's ORB blocks the cross-origin opaque response. The link's headers
+    // let the CDN accept this Worker's IP, which differs from the one that
+    // requested the link.
+    const upstream = await fetch(link.url, { headers: link.headers })
     if (!upstream.ok) {
+      // Status only: never log the body or the URL (file identifiers).
+      console.warn(`[preview] upstream ${upstream.status}`)
+      await upstream.body?.cancel()
       throw createError({
         statusCode: 502,
         statusMessage: 'BAD_GATEWAY',
-        message: 'Upstream preview unavailable',
+        message: `Upstream preview unavailable (${upstream.status})`,
       })
     }
     setHeader(event, 'content-type', upstream.headers.get('content-type') ?? 'image/jpeg')

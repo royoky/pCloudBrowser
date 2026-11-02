@@ -3,6 +3,8 @@ export default defineEventHandler((event) => {
   event.node.res.on('finish', () => {
     const ms = Date.now() - start
     const status = event.node.res.statusCode
-    console.info(`${event.method} ${event.path} ${status} ${ms}ms`)
+    // Pathname only: `event.path` includes the query string, which carries
+    // file paths (`?path=…`) that must never be logged.
+    console.info(`${event.method} ${getRequestURL(event).pathname} ${status} ${ms}ms`)
   })
 })
