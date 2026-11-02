@@ -101,10 +101,13 @@ class PathIdCache {
  */
 /**
  * getthumb results meaning "no thumbnail for this path" rather than a failure:
- * 1014 (can't thumbnail this file type) and the not-found codes.
+ * 1014 (can't thumbnail this file type), 3001 (the file is of a supported type
+ * but pCloud can't build a thumbnail from it, whatever the size) and the
+ * not-found codes.
  */
 const NO_THUMBNAIL_RESULTS: ReadonlySet<number> = new Set([
   1014,
+  3001,
   PCloudResultCode.FILE_NOT_FOUND,
   PCloudResultCode.FILE_OR_FOLDER_NOT_FOUND,
 ])
