@@ -269,18 +269,18 @@ export const downloadHandler = defineEventHandler(async (event) => {
 
     const filename = item?.name ?? path.split('/').pop() ?? 'download'
     const asciiFallback = filename.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '')
-    setHeader(
-      event,
-      'content-disposition',
-      `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
-    )
-    const contentType = upstream.headers.get('content-type') ?? 'application/octet-stream'
-    setHeader(event, 'content-type', contentType)
+    // Our own headers only: sendWebResponse would copy the CDN's, including its
+    // Content-Disposition, which carries raw UTF-8 and no `filename*`.
+    const headers: Record<string, string> = {
+      'content-disposition':
+        `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+      'content-type': upstream.headers.get('content-type') ?? 'application/octet-stream',
+    }
     const contentLength = upstream.headers.get('content-length')
     if (contentLength)
-      setHeader(event, 'content-length', Number(contentLength))
+      headers['content-length'] = contentLength
 
-    return sendWebResponse(event, upstream)
+    return sendWebResponse(event, new Response(upstream.body, { headers }))
   }
   catch (error) {
     throw toHttpError(error)
