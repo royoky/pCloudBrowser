@@ -87,8 +87,25 @@ export interface TransferOptions {
   destinationPath: string
   /** Optional new name for the item */
   newName?: string
-  /** Whether to overwrite if destination exists */
+  /**
+   * Replace an existing item of the same name at the destination. When false
+   * or omitted, nothing is replaced: the item gets a free name instead
+   * ("a.txt" -> "a (1).txt").
+   */
   overwrite?: boolean
+}
+
+/** A scaled image returned as content (see FileRepository.getThumbnail). */
+export interface ThumbnailContent {
+  body: ReadableStream<Uint8Array>
+  contentType: string
+}
+
+/** Where to fetch a file's content from the server, with what the provider requires. */
+export interface ContentLink {
+  url: string
+  /** Headers to send along when fetching `url`. */
+  headers?: Record<string, string>
 }
 
 /**
@@ -248,20 +265,35 @@ export interface FileRepository {
   search: (options: SearchOptions) => Promise<FileSystemItem[]>
 
   /**
-   * Gets the download URL for a file
+   * Gets a link to download the file from, served as an attachment.
+   *
+   * Providers may bind the link to the requester's IP: fetch it with the
+   * returned headers, which carry what lets a different IP use it.
    *
    * @param path - Path to the file
-   * @returns Promise resolving to the download URL
+   * @returns Promise resolving to the download link
    */
-  getDownloadUrl: (path: string) => Promise<string>
+  getDownloadLink: (path: string) => Promise<ContentLink>
 
   /**
-   * Gets the preview URL for a file (if previewable)
+   * Gets a link to the full content of a file (if previewable), see getDownloadLink
    *
    * @param path - Path to the file
-   * @returns Promise resolving to the preview URL, or null if not previewable
+   * @returns Promise resolving to the link, or null if not previewable
    */
-  getPreviewUrl: (path: string, thumb?: boolean) => Promise<string | null>
+  getPreviewLink: (path: string) => Promise<ContentLink | null>
+
+  /**
+   * Gets a scaled thumbnail of an image as a byte stream.
+   *
+   * Returned as content rather than a URL: provider links may be bound to the
+   * IP that requested them, which a stateless server can't guarantee when it
+   * fetches the link right after.
+   *
+   * @param path - Path to the file
+   * @returns Promise resolving to the thumbnail, or null if the file is not an image
+   */
+  getThumbnail: (path: string) => Promise<ThumbnailContent | null>
 
   /**
    * Gets a streaming URL for media files (e.g., an HLS m3u8 playlist).

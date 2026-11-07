@@ -31,21 +31,23 @@ export function toDirEntry(storage: string, dto: FileSystemItemDto): VueFinderDi
   }
 
   if (dto.type === 'file') {
+    const previewUrl = `/api/${storage}/preview?path=${encodeURIComponent(dto.path)}`
     return {
       ...base,
       type: 'file',
       extension: dto.extension,
       file_size: dto.size,
       mime_type: dto.mimeType,
-      // Route previews through our proxy — direct CDN URLs (eth*.pcloud.com)
+      // Route previews through our proxy: direct CDN URLs (eth*.pcloud.com)
       // get blocked by ORB when the browser auto-sends pCloud cookies cross-site.
-      // VueFinder uses previewUrl for the grid thumbnail, the preview modal, and
-      // the edit modal — so the same URL serves all three. We use the full image
-      // rather than a thumbnail so that the preview modal and edit view show the
-      // real content rather than a scaled-down version.
-      previewUrl: dto.hasThumbnail
-        ? `/api/${storage}/preview?path=${encodeURIComponent(dto.path)}`
-        : undefined,
+      // The grid uses a scaled thumbnail (served as bytes by the API, so no
+      // IP-bound link); the preview and edit modals use the full-size image.
+      // `thumbnailUrl` needs VueFinder >= 4.8.0: older versions ignore it and
+      // the grid would load the full-size images.
+      ...(dto.hasThumbnail && {
+        previewUrl,
+        ...(dto.mimeType.startsWith('image/') && { thumbnailUrl: `${previewUrl}&thumb=1` }),
+      }),
     }
   }
 

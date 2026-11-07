@@ -62,6 +62,16 @@ function getErrorMessage(error: unknown): string {
 }
 
 /**
+ * Batch endpoints answer 200 with a per-item outcome. Throw on the first
+ * failed item so VueFinder's modal reports it instead of claiming success.
+ */
+function assertBatchSucceeded(batch: BatchResultDto): void {
+  const failed = batch.results.find(result => !result.success)
+  if (failed)
+    throw new Error(failed.error ?? 'The operation failed')
+}
+
+/**
  * Creates a VueFinder driver bound to a single storage/provider
  * (e.g. 'pcloud' -> /api/pcloud/*).
  */
@@ -106,25 +116,25 @@ export function createVueFinderDriver(
     },
 
     async copy(params: VueFinderTransferParams): Promise<VueFinderFileOperationResult> {
-      await $fetch<BatchResultDto>(`${base}/copy`, {
+      assertBatchSucceeded(await $fetch<BatchResultDto>(`${base}/copy`, {
         method: 'POST',
         body: {
           sources: params.sources.map(toNeutral),
           destinationPath: toNeutral(params.destination),
         },
-      })
+      }))
       // Copy leaves the source dir unchanged; refresh the dir being viewed.
       return list(toNeutral(params.path ?? params.destination))
     },
 
     async move(params: VueFinderTransferParams): Promise<VueFinderFileOperationResult> {
-      await $fetch<BatchResultDto>(`${base}/move`, {
+      assertBatchSucceeded(await $fetch<BatchResultDto>(`${base}/move`, {
         method: 'POST',
         body: {
           sources: params.sources.map(toNeutral),
           destinationPath: toNeutral(params.destination),
         },
-      })
+      }))
       return list(toNeutral(params.path ?? params.destination))
     },
 
@@ -137,10 +147,10 @@ export function createVueFinderDriver(
     },
 
     async delete(params: VueFinderDeleteParams): Promise<VueFinderDeleteResult> {
-      await $fetch<BatchResultDto>(`${base}/delete`, {
+      assertBatchSucceeded(await $fetch<BatchResultDto>(`${base}/delete`, {
         method: 'POST',
         body: { paths: params.items.map(item => toNeutral(item.path)) },
-      })
+      }))
       return list(toNeutral(params.path))
     },
 
