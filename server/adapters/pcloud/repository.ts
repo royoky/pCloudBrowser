@@ -100,16 +100,18 @@ class PathIdCache {
  * - Handles path-to-ID conversions
  */
 /**
- * getthumb results meaning "no thumbnail for this path" rather than a failure:
- * 1014 (can't thumbnail this file type), 3001 (the file is of a supported type
- * but pCloud can't build a thumbnail from it, whatever the size) and the
- * not-found codes.
+ * getthumb results meaning "no thumbnail for this path" rather than a failure
+ * (error table of https://docs.pcloud.com/methods/thumbnails/getthumb.html):
+ * a file type pCloud can't thumbnail, a file it can't build one from (for
+ * instance a ZIP renamed .png), or no file at that path.
  */
 const NO_THUMBNAIL_RESULTS: ReadonlySet<number> = new Set([
-  1014,
-  3001,
+  PCloudResultCode.THUMB_TYPE_UNSUPPORTED,
+  PCloudResultCode.THUMB_FAILED,
   PCloudResultCode.FILE_NOT_FOUND,
   PCloudResultCode.FILE_OR_FOLDER_NOT_FOUND,
+  PCloudResultCode.PARENT_NOT_FOUND,
+  PCloudResultCode.INVALID_PATH,
 ])
 
 export class PCloudFileRepository implements FileRepository {

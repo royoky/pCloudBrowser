@@ -34,10 +34,10 @@ import type {
 import { $fetch } from 'ofetch'
 
 import { PCLOUD_API_ENDPOINTS } from '~~/server/constants/pcloud-endpoints'
+import { httpStatusForResult } from '~~/server/constants/pcloud-result-codes'
 import {
   getPCloudErrorMessage,
   isPCloudSuccess,
-  PCloudResultCode,
 } from '~~/server/models/pcloud-api'
 
 type PCloudItemRef = string | number | { path: string }
@@ -167,66 +167,12 @@ export class PCloudClient {
         = getPCloudErrorMessage(response) || `pCloud API returned error code: ${response.result}`
 
       // Map pCloud result codes to HTTP-like status codes
-      const statusCode = this.mapResultToStatusCode(response.result)
+      const statusCode = httpStatusForResult(response.result)
 
       throw new PCloudApiError(message, statusCode, response.result, response.error)
     }
 
     return response as T
-  }
-
-  /**
-   * Maps pCloud result codes to HTTP-like status codes
-   * This helps with error handling consistency.
-   * Uses exhaustiveness check to catch unhandled result codes.
-   */
-  private mapResultToStatusCode(result: number): number {
-    // Map known pCloud result codes to HTTP status codes
-    // Uses a switch for exhaustiveness checking
-    switch (result) {
-      // Success
-      case PCloudResultCode.SUCCESS:
-        return 200
-
-      // Authentication errors
-      case PCloudResultCode.AUTHORIZATION_ERROR:
-        return 401
-
-      // Resource errors
-      case PCloudResultCode.ALREADY_EXISTS:
-        return 409
-      case PCloudResultCode.NOT_FOUND:
-      case PCloudResultCode.SHARE_NOT_FOUND:
-      case PCloudResultCode.FILE_OR_FOLDER_NOT_FOUND:
-      case PCloudResultCode.DIRECTORY_NOT_FOUND:
-      case PCloudResultCode.FILE_NOT_FOUND:
-        return 404
-
-      // Access errors
-      case PCloudResultCode.INVALID_PARAMS:
-        return 400
-      case PCloudResultCode.RATE_LIMIT:
-      case PCloudResultCode.SHARE_PERMISSION_DENIED:
-        return 403
-
-      // Quota errors
-      case PCloudResultCode.STORAGE_QUOTA_EXCEEDED:
-        return 402
-
-      // Server errors
-      case PCloudResultCode.MAINTENANCE:
-        return 503
-
-      // Generic error
-      case PCloudResultCode.ERROR:
-      case PCloudResultCode.PARTIAL_ERROR:
-        return 400
-
-      default:
-        // Unknown code from a future or undocumented pCloud API change —
-        // return 500 so the caller gets a clean HTTP error instead of a crash.
-        return 500
-    }
   }
 
   /**
